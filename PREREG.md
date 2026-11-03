@@ -39,3 +39,5 @@ AMENDMENT 5 (analysis definitions; recorded before any grid data).
 - Slope: OLS of the per-N catch rate pooled across seeds (caught/planted) on log2(N), recomputed in each seed-level bootstrap resample (10,000; percentile 95% CI). Reps averaged per cell first. Sensitivity: mean of per-seed slopes, same bootstrap.
 - Drop N=1 to N=64 = -6 x slope (fitted). Headline (b) X = upper CI bound of that drop.
 - GLMM: local is at ceiling (complete separation), so the type x log2(N) interaction GLMM is not estimable and is dropped. Secondary GLMM = stateful errors only, logit(catch) ~ log2(N) + (1|seed).
+
+AMENDMENT 6 (recorded before any grid data). Secondary GLMM becomes logit(catch) ~ log2(N) + (1|seed) + (1|log), log = (seed, N, rep) cell, because stateful misses cluster per log. It is fit by variational Bayes and reported as descriptive only; inference rests on the seed-level bootstrap.
