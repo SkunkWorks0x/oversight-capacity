@@ -9,6 +9,7 @@ LINE = re.compile(r"^\[t=\d+\] \[(S\d+)\] \[(A\d+)\] tool=(\w+) args=(.*) result
 APPROVED = re.compile(r"Good news, your \$(\d+) refund was approved\.")
 DECLINED = re.compile(r"Sorry, your \$(\d+) refund could not be approved \(outside 30-day window\)\.")
 REMINDER = re.compile(r"Reminder: your appointment (\S+) is confirmed\.")
+IMPLICIT = "Your refund is on its way, expect it in 3-5 business days."   # approved-refund message, no amount
 GENERIC = "Thanks for reaching out, we'll be in touch shortly."
 
 def violations(text):
@@ -37,6 +38,8 @@ def violations(text):
             txt, cust = a["text"], a["customer"]
             if m := APPROVED.fullmatch(txt):
                 if refunds[s].get(cust) != (int(m.group(1)), "approved"): bad = "contradiction"
+            elif txt == IMPLICIT:
+                if refunds[s].get(cust, (None, None))[1] != "approved": bad = "contradiction"
             elif m := DECLINED.fullmatch(txt):
                 if refunds[s].get(cust) != (int(m.group(1)), "declined"): bad = "contradiction"
             elif m := REMINDER.fullmatch(txt):

@@ -12,11 +12,15 @@ SUBTLE = {  # decoys = decoy chains per error chain, per type; local knobs stay 
     "d1": {"over_cap": 40, "price_off": 15, "decoys": 1},
     "d2": {"over_cap": 40, "price_off": 15, "decoys": 2},
     "d3": {"over_cap": 40, "price_off": 15, "decoys": 3},
+    # Amendment 1: hard local knobs + implicit approved-refund wording everywhere (errors, decoys, background)
+    "d2h": {"over_cap": 5, "price_off": 5, "decoys": 2, "contra": "implicit"},
+    "d3h": {"over_cap": 5, "price_off": 5, "decoys": 3, "contra": "implicit"},
 }
 CHAIN_LEN = {"local": 1, "stateful": 4, "contradiction": 3, "cancel": 2, "appeal": 2}
 NOISE = {"cancel": 8, "appeal": 8}   # clean background pairs (book..cancel, declined refund..appeal), same at every knob
 APPROVED = "Good news, your ${} refund was approved."
 DECLINED = "Sorry, your ${} refund could not be approved (outside 30-day window)."
+IMPLICIT = "Your refund is on its way, expect it in 3-5 business days."   # replaces APPROVED at "implicit" levels
 HEADER = (
     "FRANCHISE POLICY (applies to every agent below)\n"
     f"- Refunds: agents may approve refunds up to ${CAP}. Larger requests must be escalated, never approved. "
@@ -95,6 +99,7 @@ SUBTLETY = "d2"   # provisional default; calibration picks the final value. Runn
 
 def build(n, seed, total=256, n_err=16, subtlety=SUBTLETY):
     kn = SUBTLE[subtlety]
+    approved = (lambda amt: IMPLICIT) if kn.get("contra") == "implicit" else APPROVED.format
     errs, decs, noise = plan(seed, total, n_err, kn["decoys"])
     chains = [c for c in errs + decs + noise if c["type"] != "local"]
     owners = schedule(n, total, [c["chain"] for c in chains], random.Random(seed * 1000 + n))
@@ -143,7 +148,7 @@ def build(n, seed, total=256, n_err=16, subtlety=SUBTLETY):
                 elif i == 1:
                     tool, a, r = "refund_appeal", {"customer": A, "amount": m}, {"status": "approved" if fl == "decoy1" else "declined"}
                 else:   # error: approved message after a declined appeal
-                    txt = (DECLINED if fl == "decoy2" else APPROVED).format(m)
+                    txt = DECLINED.format(m) if fl == "decoy2" else approved(m)
                     tool, a, r = "send_message", {"customer": A, "text": txt}, {"status": "sent"}
         elif pos in local_at:
             if d["lk"] < 0.5:
@@ -176,7 +181,7 @@ def build(n, seed, total=256, n_err=16, subtlety=SUBTLETY):
                     bl = sorted(st[s]["booked"].items()); sl2, c = bl[int(d["y"] * 997) % len(bl)]
                     txt = f"Reminder: your appointment {sl2} is confirmed."
                 elif k == "confirm":
-                    c, amt = st[s]["approved"].pop(0); txt = APPROVED.format(amt)
+                    c, amt = st[s]["approved"].pop(0); txt = approved(amt)
                 elif k == "decline":
                     c, amt = st[s]["declined"].pop(0); txt = DECLINED.format(amt)
                 else:
