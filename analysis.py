@@ -2,8 +2,9 @@
 """Offline analysis of one results root for one condition (no API calls).
 Usage: python analysis.py --root results_grid [--cond T0] [--seeds 0-49] [--boot 10000] [--fig out.png]
 Slope = OLS of the per-N pooled catch rate (caught / planted, summed over seeds, reps averaged per cell
-first) on log2(N), in points per doubling. CIs: percentile, resampling seeds with replacement."""
-import argparse, glob, json, os, random, re, statistics, sys
+first) on log2(N), in points per doubling. Sensitivity (sens_*): mean of per-seed slopes. CIs: percentile,
+resampling seeds with replacement (PREREG Amendment 5)."""
+import argparse, glob, json, math, os, random, re, statistics, sys
 from runner import rng_list
 
 TYPES = ["local", "stateful", "contradiction"]
@@ -40,6 +41,7 @@ def load(root, cond, seeds):
                 d["caught"][t].append(sum(r["by_type"][t]["caught"] for r in rs) / len(rs))
             p = d["planted"]["stateful"]
             d["engaged"].append(sum(r["by_type"]["stateful"]["caught"] >= p / 2 for r in rs) / len(rs))
+        d["seed_slope"] = {t: slope([c / d["planted"][t] for c in d["caught"][t]]) for t in TYPES}
         per.append(d)
     return rows, per, present, reps[0]
 
@@ -51,18 +53,22 @@ def rates(sample):
     out["engaged"] = [sum(d["engaged"][j] for d in sample) / len(sample) for j in range(4)]
     return out
 
-def estimates(r):
+def estimates(sample):
+    r = rates(sample)
     sl = {g: slope(v) for g, v in r.items()}
+    sens = {t: sum(d["seed_slope"][t] for d in sample) / len(sample) for t in ("local", "stateful")}
     return {**{f"slope_{g}": v for g, v in sl.items()},
             "contrast_stateful_minus_local": sl["stateful"] - sl["local"],
-            "contrast_pooled_minus_local": sl["pooled"] - sl["local"]}
+            "contrast_pooled_minus_local": sl["pooled"] - sl["local"],
+            "sens_slope_local": sens["local"], "sens_slope_stateful": sens["stateful"],
+            "sens_contrast_stateful_minus_local": sens["stateful"] - sens["local"]}, r
 
 def bootstrap(per, B, seed):
     rng = random.Random(seed); S = len(per)
     est, per_n = [], []
     for _ in range(B):
-        r = rates([per[rng.randrange(S)] for _ in range(S)])
-        est.append(estimates(r)); per_n.append(r)
+        e, r = estimates([per[rng.randrange(S)] for _ in range(S)])
+        est.append(e); per_n.append(r)
     return est, per_n
 
 def glmm(rows):
@@ -71,10 +77,13 @@ def glmm(rows):
         from statsmodels.genmod.bayes_mixed_glm import BinomialBayesMixedGLM
     except ImportError:
         return "GLMM skipped: statsmodels/pandas not installed."
-    recs = [{"y": int(i < r["by_type"][t]["caught"]), "x": NS.index(r["n"]) * 2, "st": int(t == "stateful"), "seed": r["seed"]}
-            for r in rows for t in ("local", "stateful") for i in range(r["by_type"][t]["planted"])]
-    m = BinomialBayesMixedGLM.from_formula("y ~ x * st", {"seed": "0 + C(seed)"}, pd.DataFrame(recs))
-    return "Logistic GLMM (random intercept per seed, variational Bayes); x = log2(N), st = stateful vs local:\n" + str(m.fit_vb().summary())
+    recs = [{"y": int(i < r["by_type"]["stateful"]["caught"]), "x": NS.index(r["n"]) * 2, "seed": r["seed"]}
+            for r in rows for i in range(r["by_type"]["stateful"]["planted"])]
+    m = BinomialBayesMixedGLM.from_formula("y ~ x", {"seed": "0 + C(seed)"}, pd.DataFrame(recs))
+    fit = m.fit_vb(); b, sd = fit.fe_mean[m.exog_names.index("x")], fit.fe_sd[m.exog_names.index("x")]
+    return (f"Stateful-only GLMM, logit(catch) ~ log2(N) + (1|seed), variational Bayes, {len(recs)} error-level rows:\n"
+            f"  log2(N) coefficient {b:+.3f} log-odds per doubling (posterior SD {sd:.3f}; approx 95% [{b - 1.96 * sd:+.3f}, {b + 1.96 * sd:+.3f}])\n"
+            f"  random-intercept SD (seed) {math.exp(fit.vcp_mean[0]):.3f}")
 
 def descriptives(root, rows, seeds, cond):
     calls = [json.loads(l) for l in open(os.path.join(root, "calls.jsonl"))] if os.path.exists(os.path.join(root, "calls.jsonl")) else []
@@ -134,7 +143,7 @@ def main():
     ap.add_argument("--boot", type=int, default=10000); ap.add_argument("--boot-seed", type=int, default=0); ap.add_argument("--fig")
     a = ap.parse_args()
     rows, per, seeds, reps = load(a.root, a.cond, set(rng_list(a.seeds)) if a.seeds else None)
-    point = rates(per); est = estimates(point)
+    est, point = estimates(per)
     boots, per_n = bootstrap(per, a.boot, a.boot_seed)
     print(f"=== {a.root} cond={a.cond}: {len(seeds)} seeds x N {NS} x {reps} reps; {a.boot} seed-level bootstrap resamples ===")
     print("\nSlopes on log2(N), points per doubling [95% CI]:")
@@ -151,7 +160,7 @@ def main():
     print("\nDescriptives by N (all reps):"); print(descriptives(a.root, rows, seeds, a.cond))
     print("\n" + glmm(rows))
     print(figure(point, per_n, a.fig or os.path.join(a.root, f"catch_vs_N_{a.cond}.png"),
-                 f"Catch rate vs agent streams, {a.cond} ({len(seeds)} seeds, {reps} reps)"))
+                 f"Catch rate vs agent streams, {a.cond}\n{a.root} · {len(seeds)} seeds · {reps} reps · seed-bootstrap 95% CI"))
 
 if __name__ == "__main__":
     main()

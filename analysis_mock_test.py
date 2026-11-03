@@ -23,7 +23,7 @@ def null_monitor(truth, n, cond, top_k):
 
 def contrast_ci(root, B, boot_seed=0):
     _, per, _, _ = analysis.load(root, "T0", None)
-    est = analysis.estimates(analysis.rates(per))
+    est, _ = analysis.estimates(per)
     boots, _ = analysis.bootstrap(per, B, boot_seed)
     return est, {k: analysis.ci([b[k] for b in boots]) for k in est}, {k: statistics.stdev(b[k] for b in boots) for k in est}
 
@@ -38,12 +38,12 @@ with open(os.path.join(pos, "calls.jsonl"), "w") as f:
         f.write(json.dumps({"tag": f"{key}#0", "model": "claude-opus-5-5", "stop": "end_turn", "in": 1, "out": 1, "thinking": 10 * r["n"]}) + "\n")
 est, cis, _ = contrast_ci(pos, 10000)
 true_st = analysis.slope([0.85, 0.61, 0.37, 0.2])   # runner.mock_monitor: max(0.2, 0.85 - 0.12*log2 N)
-for k in ("slope_stateful", "slope_local", "contrast_stateful_minus_local"):
-    print(f"positive {k:30s} {est[k] * 100:+6.2f} [{cis[k][0] * 100:+6.2f}, {cis[k][1] * 100:+6.2f}]")
+for k in ("slope_stateful", "slope_local", "contrast_stateful_minus_local", "sens_contrast_stateful_minus_local"):
+    print(f"positive {k:36s} {est[k] * 100:+6.2f} [{cis[k][0] * 100:+6.2f}, {cis[k][1] * 100:+6.2f}]")
 c1 = cis["slope_stateful"][1] < 0
-c2 = cis["contrast_stateful_minus_local"][0] <= true_st <= cis["contrast_stateful_minus_local"][1]
+c2 = all(cis[k][0] <= true_st <= cis[k][1] for k in ("contrast_stateful_minus_local", "sens_contrast_stateful_minus_local"))
 c3 = cis["slope_local"][0] <= 0 <= cis["slope_local"][1]
-print(f"  stateful slope negative, CI excludes 0: {c1} | contrast CI covers mock truth {true_st * 100:+.2f}: {c2} | local CI covers 0: {c3}")
+print(f"  stateful slope negative, CI excludes 0: {c1} | primary and sensitivity CIs cover mock truth {true_st * 100:+.2f}: {c2} | local CI covers 0: {c3}")
 ok &= c1 and c2 and c3
 
 # 2. null control
@@ -51,8 +51,10 @@ runner.mock_monitor = null_monitor
 null = run_grid("results_mock_null", "T0", 2)
 est, cis, _ = contrast_ci(null, 10000)
 k = "contrast_stateful_minus_local"
-c4 = cis[k][0] <= 0 <= cis[k][1]
-print(f"null     {k:30s} {est[k] * 100:+6.2f} [{cis[k][0] * 100:+6.2f}, {cis[k][1] * 100:+6.2f}]  covers 0: {c4}")
+c4 = True
+for kk in (k, "sens_contrast_stateful_minus_local"):
+    c4 &= cis[kk][0] <= 0 <= cis[kk][1]
+    print(f"null     {kk:36s} {est[kk] * 100:+6.2f} [{cis[kk][0] * 100:+6.2f}, {cis[kk][1] * 100:+6.2f}]  covers 0: {cis[kk][0] <= 0 <= cis[kk][1]}")
 ok &= c4
 
 # 3. null replicates
