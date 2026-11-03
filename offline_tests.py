@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
 """Offline checks D1-D4 for gen v3 (D5 is `runner.py run --mock`). No API calls.
-Usage: python offline_tests.py"""
-import json, re
+Usage: python offline_tests.py [--knobs d2h,d3h] [--seeds 0-29,100-134]"""
+import argparse, json, re, statistics
 from collections import Counter, defaultdict
 from gen import build
 from score import score
 from replay import violations
+from runner import rng_list
 
-SEEDS = list(range(30)) + list(range(100, 125))
+ap = argparse.ArgumentParser(); ap.add_argument("--knobs", default="d1,d2,d3"); ap.add_argument("--seeds", default="0-29,100-124")
+args = ap.parse_args()
+SEEDS = rng_list(args.seeds)
 NS = [1, 4, 16, 64]
-KNOBS = ["d1", "d2", "d3"]
+KNOBS = args.knobs.split(",")
 LINE = re.compile(r"^\[t=(\d+)\] \[(S\d+)\] \[(A\d+)\] tool=(\w+) ")
 
 logs = {(k, s, n): build(n, s, subtlety=k) for k in KNOBS for s in SEEDS for n in NS}
@@ -62,6 +65,15 @@ for k in KNOBS:
               + f"   {sum(shares) / len(shares):6.1%} ({min(shares):.1%}-{max(shares):.1%})"
               + f"   {sum(nshare) / len(nshare):5.1%}  {sum(bg) / len(bg):6.1%}"
               + f"   {b150 / total_actions:.1%} / {b151 / total_actions:.1%}")
+
+# Collinearity: generic-message share of clean messages, per seed, seeds 0-29
+print("Collinearity: generic share of clean messages, mean (SD) across seeds 0-29")
+for k in KNOBS:
+    parts = []
+    for n in NS:
+        g = [m["generic"] / sum(m.values()) for s in SEEDS if s < 30 for m in [logs[(k, s, n)][1]["clean_msg_kinds"]]]
+        parts.append(f"N={n}: {statistics.mean(g):5.1%} ({statistics.stdev(g):.1%})")
+    print(f"   {k}  " + "   ".join(parts))
 
 # D4: score.py on constructed responses (N=1, seed 100, each knob)
 for k in KNOBS:
