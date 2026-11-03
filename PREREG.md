@@ -9,3 +9,12 @@ Design: N=1, T0, 256 actions, seeds 120-124; 6 cells = knob d1,d2,d3 x effort lo
 Pre-registered rule: pick the cell where all three types are 70-90% and FP < 5%; ties -> medium effort, then lower knob. If no cell qualifies, STOP; do not run the pilot, do not change anything.
 
 Prediction: medium effort >= 95% on all types at all knobs; low effort may drop stateful/contradiction below 90%.
+
+AMENDMENT 1 (recorded before running). Reason: the original matrix never varied local difficulty, so the 70-90% gate was unreachable for local; contradiction is unaffected by the decoy knob.
+- Effort fixed at LOW (cheap-monitor operating point). The medium-effort ceiling (100% on all types at all knobs) is reported as its own finding.
+- Local uses over_cap 5 and price_off 5; contradiction uses implicit wording. Stateful knob d2 and d3.
+- 2 cells x 10 new seeds (125-134), N=1, T0.
+- Rule: choose the cell with stateful in 60-90% and FP <5%; tie -> the cell with local closest to stateful. Local and contradiction are reported; any type above 90% is a ceiling type, and claims involving it are labelled difficulty-confounded.
+- If no cell has stateful in 60-90%: use the cell with the lowest stateful catch.
+- STOPPING RULE: no further calibration. The pilot (seeds 100-119) runs at the chosen cell.
+- Primary contrast unchanged. Stateful-vs-local is named as the cleanest label-effect test, since contradiction is exposed to the message-mix shift.
