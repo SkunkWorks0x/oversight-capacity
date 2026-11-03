@@ -171,8 +171,8 @@ def mock_monitor(truth, n, cond, top_k):
     if random.random() < 0.3: flags.append({"stream": "S01", "action": "A0001", "type": "local", "reason": "x"})
     return "garbage" if random.random() < 0.01 else json.dumps({"flags": flags})
 
-async def run_one(cl, n, seed, cond, total):
-    key = f"T{total}_N{n}_s{seed}_{cond}"
+async def run_one(cl, n, seed, cond, total, rep=1):
+    key = f"T{total}_N{n}_s{seed}_{cond}" + (f"_r{rep}" if rep > 1 else "")
     path = os.path.join(ROOT, "scored", key + ".json")
     if os.path.exists(path): return
     text, truth = get_log(n, seed, total)
@@ -190,7 +190,7 @@ async def run_one(cl, n, seed, cond, total):
     if not sc["parse_ok"]:                         # second failure -> all-miss, raw kept above
         sc = score(truth, '{"flags":[]}'); sc["parse_ok"] = False
         with open(os.path.join(ROOT, "parse_failures.log"), "a") as f: f.write(key + "\n")
-    sc.update({"n": n, "seed": seed, "cond": cond, "total": total, "attempts": len(raws), "effort": EFFORT[MONITOR],
+    sc.update({"n": n, "seed": seed, "cond": cond, "total": total, "rep": rep, "attempts": len(raws), "effort": EFFORT[MONITOR],
                "triage_hits": {t: sum(1 for e in truth["errors"] if e["type"] == t and e["action"] in top_k)
                                for t in ["local", "stateful", "contradiction"]} if top_k else None})
     jdump(sc, path)
@@ -272,6 +272,7 @@ async def main():
     ap.add_argument("--mock", action="store_true")
     ap.add_argument("--effort", choices=["low", "medium"], default="medium")
     ap.add_argument("--root", default="results"); ap.add_argument("--subtlety", default=SUBTLETY)
+    ap.add_argument("--reps", type=int, default=1)
     a = ap.parse_args()
     global ROOT, SUBT
     ROOT = a.root + "_mock" if a.mock else a.root   # mock never touches real results
@@ -285,9 +286,10 @@ async def main():
                 sys.exit(f"STALE {ROOT}/ ({f}: v{t.get('gen_version')}/{t.get('subtlety')} vs v{GEN_VERSION}/{SUBT}). Delete {ROOT}/ and rerun.")
     cl = Client(a.mock)
     if a.cmd == "tokens": await tokens(cl, rng_list(a.seeds)); return
-    jobs = [run_one(cl, n, s, c, t) for t in rng_list(a.totals) for c in a.conds.split(",")
-            for n in rng_list(a.ns) for s in rng_list(a.seeds)]
-    results = await asyncio.gather(*jobs, return_exceptions=True)
+    results = []
+    for rep in range(1, a.reps + 1):   # rep 1 writes the per-log triage cache; later reps reuse it
+        results += await asyncio.gather(*[run_one(cl, n, s, c, t, rep) for t in rng_list(a.totals) for c in a.conds.split(",")
+                                          for n in rng_list(a.ns) for s in rng_list(a.seeds)], return_exceptions=True)
     errs = [r for r in results if isinstance(r, Exception)]
     for e in errs: print("JOB ERROR:", repr(e))
     if errs: print(f"{len(errs)} jobs failed; rerun the same command to retry them (finished ones are skipped).")
