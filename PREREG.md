@@ -18,3 +18,9 @@ AMENDMENT 1 (recorded before running). Reason: the original matrix never varied 
 - If no cell has stateful in 60-90%: use the cell with the lowest stateful catch.
 - STOPPING RULE: no further calibration. The pilot (seeds 100-119) runs at the chosen cell.
 - Primary contrast unchanged. Stateful-vs-local is named as the cleanest label-effect test, since contradiction is exposed to the message-mix shift.
+
+AMENDMENT 2 (decided before the Amendment 1 calibration table was seen).
+- Primary contrast: seed-level bootstrap of (stateful slope - local slope) on log2(N). Contradiction and the pooled (stateful+contradiction) contrast are secondary, because contradiction is exposed to the message-mix shift, which is nearly collinear with N.
+- Difficulty-match rule: the type-specific claim is supported only if pilot N=1 T0 catch rates (seeds 100-119) of stateful and local differ by <=15 points. Otherwise the contrast is labelled difficulty-confounded, the separate slopes are reported, and a differential drop is not interpreted as state-tracking cost.
+- Grid seeds: 0-49 (power ~86% for a 15-point differential drop, simulated).
+- Covariate adjustment for generic-message share is NOT used for inference (collinear with N); share is reported by N.
