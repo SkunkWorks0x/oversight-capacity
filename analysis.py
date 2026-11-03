@@ -77,13 +77,16 @@ def glmm(rows):
         from statsmodels.genmod.bayes_mixed_glm import BinomialBayesMixedGLM
     except ImportError:
         return "GLMM skipped: statsmodels/pandas not installed."
-    recs = [{"y": int(i < r["by_type"]["stateful"]["caught"]), "x": NS.index(r["n"]) * 2, "seed": r["seed"]}
+    recs = [{"y": int(i < r["by_type"]["stateful"]["caught"]), "x": NS.index(r["n"]) * 2, "seed": r["seed"],
+             "log": f"{r['seed']}_{r['n']}_{r.get('rep', 1)}"}
             for r in rows for i in range(r["by_type"]["stateful"]["planted"])]
-    m = BinomialBayesMixedGLM.from_formula("y ~ x", {"seed": "0 + C(seed)"}, pd.DataFrame(recs))
+    m = BinomialBayesMixedGLM.from_formula("y ~ x", {"seed": "0 + C(seed)", "log": "0 + C(log)"}, pd.DataFrame(recs))
     fit = m.fit_vb(); b, sd = fit.fe_mean[m.exog_names.index("x")], fit.fe_sd[m.exog_names.index("x")]
-    return (f"Stateful-only GLMM, logit(catch) ~ log2(N) + (1|seed), variational Bayes, {len(recs)} error-level rows:\n"
+    re_sd = ", ".join(f"{name} {math.exp(v):.3f}" for name, v in zip(m.vcp_names, fit.vcp_mean))
+    return (f"Stateful-only GLMM (DESCRIPTIVE ONLY, Amendment 6), logit(catch) ~ log2(N) + (1|seed) + (1|log), log = (seed, N, rep);\n"
+            f"  variational Bayes, {len(recs)} error-level rows, {len({x['log'] for x in recs})} logs:\n"
             f"  log2(N) coefficient {b:+.3f} log-odds per doubling (posterior SD {sd:.3f}; approx 95% [{b - 1.96 * sd:+.3f}, {b + 1.96 * sd:+.3f}])\n"
-            f"  random-intercept SD (seed) {math.exp(fit.vcp_mean[0]):.3f}")
+            f"  random-intercept SDs: {re_sd}")
 
 def descriptives(root, rows, seeds, cond):
     calls = [json.loads(l) for l in open(os.path.join(root, "calls.jsonl"))] if os.path.exists(os.path.join(root, "calls.jsonl")) else []
