@@ -24,3 +24,11 @@ AMENDMENT 2 (decided before the Amendment 1 calibration table was seen).
 - Difficulty-match rule: the type-specific claim is supported only if pilot N=1 T0 catch rates (seeds 100-119) of stateful and local differ by <=15 points. Otherwise the contrast is labelled difficulty-confounded, the separate slopes are reported, and a differential drop is not interpreted as state-tracking cost.
 - Grid seeds: 0-49 (power ~86% for a 15-point differential drop, simulated).
 - Covariate adjustment for generic-message share is NOT used for inference (collinear with N); share is reported by N.
+
+AMENDMENT 3 (recorded before the pilot). Calibration showed stateful misses are all-or-nothing per log at low effort.
+- Correction to Amendment 2 timing: Amendment 2 was decided in the reviewer chat before the Amendment 1 table existed, but committed after it was generated (09:51); the repo cannot verify the timing.
+- Correction to Amendment 2 power: the ~86% figure assumed independent errors within a log and is withdrawn. Re-simulated with whole-log engagement (50 seeds, 15-point drop, local at ceiling): 1 call per cell gives 45% if skips are random per call, 95% if content-driven; 2 calls per cell give 72% if random.
+- Primary outcome unchanged: per-error catch rate. Secondary: per-log stateful engagement (log catches >= half its stateful errors), seed-level bootstrap on its slope.
+- Grid design: 2 monitor calls per cell in every condition (T0, T1, T2), averaged per cell before the seed-level contrast. Fixed, not conditional on pilot data. The pilot's repeat agreement on engagement is reported descriptively.
+- Pilot gates: stateful 60-90% (pooled over repeats), FP < 5%, parse >= 98%, T2 triage recall on local >= 80% and near chance on stateful. The <=15-point difficulty rule is computed on the pilot and reported. If a gate fails: report and STOP; no retuning on pilot seeds.
+- Headline templates: (a) 'At fixed log length with identical events, low-effort monitor catch rate on stateful errors declines as the same actions are spread across more agent streams; local and contradiction errors stay at ceiling, so the contrast is difficulty-confounded.' (b) 'At fixed log length with identical events, spreading actions across up to 64 agent streams produced no detectable decline in low-effort stateful catch rate; the 95% CI excludes drops larger than X points.'
