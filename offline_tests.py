@@ -25,7 +25,7 @@ ok &= not bad
 def parsed(text):
     return [LINE.match(l).groups() for l in text.split("\n\n", 1)[1].splitlines()]
 def plan_view(truth):
-    return [{k: v for k, v in e.items() if k != "stream"} for e in truth["errors"] + truth["decoys"]]
+    return [{k: v for k, v in e.items() if k != "stream"} for e in truth["errors"] + truth["decoys"] + truth["noise"]]
 cross_bad, chain_bad = [], []
 for k in KNOBS:
     for s in SEEDS:
@@ -36,7 +36,7 @@ for k in KNOBS:
             if ref is None: ref = view
             elif view != ref: cross_bad.append((k, s, n))
             stream = {r[2]: r[1] for r in rows}
-            for e in truth["errors"] + truth["decoys"]:
+            for e in truth["errors"] + truth["decoys"] + truth["noise"]:
                 if {stream[a] for a in e["chain"]} != {e["stream"]}: chain_bad.append((k, s, n, e["action"]))
 print(f"D2 cross-N identical (positions/types/gaps/chains/flavors, times, action IDs, tools): "
       f"{len(KNOBS) * len(SEEDS) - len(cross_bad)}/{len(KNOBS) * len(SEEDS)} (knob, seed)" + (f"  FAIL {cross_bad[:5]}" if cross_bad else ""))
@@ -45,19 +45,22 @@ print(f"D2 chains in one stream (incl. truth stream == log stream): "
 ok &= not cross_bad and not chain_bad
 
 # D3: clean message-kind mix and chain-event share
-print("D3 knob  N   reminder confirm decline generic   chain-event share (mean, min-max)   boundary $150 / $151")
+print("D3 knob  N   reminder confirm decline generic   chain-event share (mean, min-max)   noise  background   boundary $150 / $151")
 for k in KNOBS:
     for n in NS:
-        kinds, shares, b150, b151 = Counter(), [], 0, 0
+        kinds, shares, nshare, bg, b150, b151 = Counter(), [], [], [], 0, 0
         for s in SEEDS:
             text, truth = logs[(k, s, n)]
             kinds.update(truth["clean_msg_kinds"])
             shares.append(sum(len(e["chain"]) for e in truth["errors"] + truth["decoys"] if e["type"] != "local") / truth["total"])
+            nshare.append(sum(len(e["chain"]) for e in truth["noise"]) / truth["total"])
+            bg.append(1 - shares[-1] - nshare[-1] - sum(e["type"] == "local" for e in truth["errors"]) / truth["total"])
             b150 += text.count('"amount": 150} result={"status": "approved"}')
             b151 += text.count('"amount": 151} result={"status": "escalated"}')
         tot = sum(kinds.values()); total_actions = 256 * len(SEEDS)
         print(f"   {k}  {n:2d}   " + "  ".join(f"{kinds[m] / tot:6.1%}" for m in ["reminder", "confirm", "decline", "generic"])
               + f"   {sum(shares) / len(shares):6.1%} ({min(shares):.1%}-{max(shares):.1%})"
+              + f"   {sum(nshare) / len(nshare):5.1%}  {sum(bg) / len(bg):6.1%}"
               + f"   {b150 / total_actions:.1%} / {b151 / total_actions:.1%}")
 
 # D4: score.py on constructed responses (N=1, seed 100, each knob)

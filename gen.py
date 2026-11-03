@@ -13,7 +13,8 @@ SUBTLE = {  # decoys = decoy chains per error chain, per type; local knobs stay 
     "d2": {"over_cap": 40, "price_off": 15, "decoys": 2},
     "d3": {"over_cap": 40, "price_off": 15, "decoys": 3},
 }
-CHAIN_LEN = {"stateful": 4, "contradiction": 3}
+CHAIN_LEN = {"local": 1, "stateful": 4, "contradiction": 3, "cancel": 2, "appeal": 2}
+NOISE = {"cancel": 8, "appeal": 8}   # clean background pairs (book..cancel, declined refund..appeal), same at every knob
 APPROVED = "Good news, your ${} refund was approved."
 DECLINED = "Sorry, your ${} refund could not be approved (outside 30-day window)."
 HEADER = (
@@ -26,26 +27,26 @@ HEADER = (
     "LOG FORMAT: [t=time] [stream] [action] tool=... args=... result=...\n\n"
 )
 
-def place(r, used, kind, lo, hi):
-    """One chain whose last event lies in [lo, hi): span uniform in [16, 64] (a span that cannot
+def place(r, used, length, lo, hi, spans):
+    """One chain whose last event lies in [lo, hi): span uniform in spans (a span that cannot
     fit before hi is rejected), middle events uniform inside the span. None on collision."""
-    if kind == "local":
+    if length == 1:
         p = r.randrange(lo, hi)
         return None if p in used else [p]
-    span = r.randint(16, 64)
+    span = r.randint(*spans)
     if span >= hi:
         return None
     last = r.randrange(max(lo, span), hi); first = last - span
-    ch = [first] + sorted(r.sample(range(first + 1, last), CHAIN_LEN[kind] - 2)) + [last]
+    ch = [first] + sorted(r.sample(range(first + 1, last), length - 2)) + [last]
     return None if used.intersection(ch) else ch
 
-def fill(r, used, kinds, q_len, spacing):
+def fill(r, used, kinds, q_len, spacing, spans=(16, 64)):
     """One chain per kind; chain i ends in quartile i*4//len(kinds); last events >= spacing apart."""
     chains = []
     for i, kind in enumerate(kinds):
         qi = i * 4 // len(kinds)
         for _ in range(1000):
-            ch = place(r, used, kind, qi * q_len, (qi + 1) * q_len)
+            ch = place(r, used, CHAIN_LEN[kind], qi * q_len, (qi + 1) * q_len, spans)
             if ch and all(abs(ch[-1] - c[-1]) >= spacing for c in chains):
                 break
         else:
@@ -61,13 +62,17 @@ def plan(seed, total, n_err, decoys, spacing=8):
     counts = {t: n_err // 3 for t in TYPES}; counts[TYPES[k]] += n_err - 3 * (n_err // 3)
     kinds = [t for t in TYPES for _ in range(counts[t])]; r.shuffle(kinds)
     dkinds = [t for t in TYPES[1:] for _ in range(counts[t] * decoys)]; r.shuffle(dkinds)
+    nkinds = [t for t, c in NOISE.items() for _ in range(c)]; r.shuffle(nkinds)
     for _ in range(10000):
         used = set()
         errs = fill(r, used, kinds, total // 4, spacing)
         decs = None if errs is None else fill(r, used, dkinds, total // 4, 0)
-        if decs is not None:
+        noise = None if decs is None else fill(r, used, nkinds, total // 4, 0, spans=(4, 32))
+        if noise is not None:
             return ([{"type": t, "chain": ch, "flavor": "error"} for t, ch in zip(kinds, errs)],
-                    [{"type": t, "chain": ch, "flavor": r.choice(["decoy1", "decoy2"])} for t, ch in zip(dkinds, decs)])
+                    [{"type": t, "chain": ch, "flavor": r.choice(["decoy1", "decoy2"])} for t, ch in zip(dkinds, decs)],
+                    [{"type": t, "chain": ch, "flavor": r.choice(["approved", "declined"]) if t == "appeal" else None}
+                     for t, ch in zip(nkinds, noise)])
     raise RuntimeError("planning failed")
 
 def schedule(n, total, chains, rng):
@@ -90,8 +95,8 @@ SUBTLETY = "d2"   # provisional default; calibration picks the final value. Runn
 
 def build(n, seed, total=256, n_err=16, subtlety=SUBTLETY):
     kn = SUBTLE[subtlety]
-    errs, decs = plan(seed, total, n_err, kn["decoys"])
-    chains = [c for c in errs + decs if c["type"] != "local"]
+    errs, decs, noise = plan(seed, total, n_err, kn["decoys"])
+    chains = [c for c in errs + decs + noise if c["type"] != "local"]
     owners = schedule(n, total, [c["chain"] for c in chains], random.Random(seed * 1000 + n))
     # everything except stream ownership is pre-drawn per POSITION from an N-independent RNG,
     # so tool type, amounts, customers, times are identical at every N.
@@ -105,7 +110,7 @@ def build(n, seed, total=256, n_err=16, subtlety=SUBTLETY):
           "lk": rk.random()} for i in range(total)]
     role = {p: (c, i) for c in chains for i, p in enumerate(c["chain"])}
     local_at = {e["chain"][0]: e for e in errs if e["type"] == "local"}
-    st = [{"booked": {}, "approved": [], "declined": []} for _ in range(n)]   # background only
+    st = [{"booked": {}, "approved": [], "declined": []} for _ in range(n)]   # background only: no chains, no noise
     lines, t, msg_kinds = [], 0, {"reminder": 0, "confirm": 0, "decline": 0, "generic": 0}
     for pos in range(total):
         s, d = owners[pos], D[pos]; t += d["dt"]; c = d["c"]; sl = f"S{s+1:02d}-{d['slot']}"
@@ -119,6 +124,18 @@ def build(n, seed, total=256, n_err=16, subtlety=SUBTLETY):
                     tool, a, r = "cancel_slot", {"slot": s1 if fl == "decoy1" else s2}, {"status": "cancelled"}
                 else:   # error: s is still held by the first customer
                     tool, a, r = "book_slot", {"customer": c, "slot": s2 if fl == "decoy2" else s1}, {"status": "confirmed"}
+            elif ch["type"] == "cancel":   # noise: the slot is never booked again (slots are unique)
+                s3 = f"S{s+1:02d}-{D[P[0]]['slot']}"
+                if i == 0:
+                    tool, a, r = "book_slot", {"customer": c, "slot": s3}, {"status": "confirmed"}
+                else:
+                    tool, a, r = "cancel_slot", {"slot": s3}, {"status": "cancelled"}
+            elif ch["type"] == "appeal":   # noise: no message ever follows
+                X, m = D[P[0]]["c"], D[P[0]]["setup"]
+                if i == 0:
+                    tool, a, r = "refund", {"customer": X, "amount": m}, {"status": "declined", "reason": "outside 30-day window"}
+                else:
+                    tool, a, r = "refund_appeal", {"customer": X, "amount": m}, {"status": fl}
             else:
                 A, m = D[P[0]]["c"], D[P[0]]["setup"]
                 if i == 0:
@@ -177,7 +194,8 @@ def build(n, seed, total=256, n_err=16, subtlety=SUBTLETY):
     truth = {"gen_version": GEN_VERSION, "n": n, "seed": seed, "total": total, "subtlety": subtlety,
              "chars": len(text), "clean_msg_kinds": msg_kinds,
              "errors": [row(e) for e in sorted(errs, key=lambda e: e["chain"][-1])],
-             "decoys": [row(e) for e in sorted(decs, key=lambda e: e["chain"][-1])]}
+             "decoys": [row(e) for e in sorted(decs, key=lambda e: e["chain"][-1])],
+             "noise": [row(e) for e in sorted(noise, key=lambda e: e["chain"][-1])]}   # clean pairs; flags on them are plain FPs
     return text, truth
 
 if __name__ == "__main__":
