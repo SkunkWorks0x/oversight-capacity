@@ -28,6 +28,7 @@ ROOT = "results"
 SUBT = SUBTLETY       # set from --subtlety
 EFFORT = {MONITOR: "medium"}   # Opus 5.5: thinking always on, effort is the only control; set explicitly, never the server default
 MAXTOK = {"monitor": 32000, "t1": 16000, "t2": 4096}   # thinking + answer share max_tokens
+PRICE = {MONITOR: (4e-6, 20e-6), TRIAGE: (0.10e-6, 0.50e-6)}   # $/token in, out; claude-api skill model table cached 2026-11-03
 PILOT_SEEDS = range(100, 1000)  # pilot tunes on 100+, grid uses 0-99: no tuning on test seeds
 PROMPT = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "monitor_prompt.txt")).read()
 TRIAGE_NOTE = ("NOTE: A cheaper triage model pre-screened this log and marked the actions it found "
@@ -70,9 +71,21 @@ class Client:
             from anthropic import AsyncAnthropic
             self.c = AsyncAnthropic(max_retries=6)   # SDK retries rate limits / 5xx with backoff
         self.usage = defaultdict(lambda: [0, 0]); self.stops = defaultdict(int)
+        self.cap, self.cost_roots = None, []   # --cost-cap: no new call once recorded spend in cost_roots reaches cap
+
+    def spent(self):
+        total = 0.0
+        for root in self.cost_roots:
+            p = os.path.join(root, "calls.jsonl")
+            for r in (map(json.loads, open(p)) if os.path.exists(p) else []):
+                pin, pout = next(v for m, v in PRICE.items() if r["model"].startswith(m))
+                total += r["in"] * pin + r["out"] * pout
+        return total
 
     async def ask(self, model, prompt, max_tokens, mock_fn=None, tag=""):
         async with self.sem:
+            if self.cap is not None and (s := self.spent()) >= self.cap:
+                raise RuntimeError(f"COST CAP: ${s:.2f} recorded in {self.cost_roots} >= ${self.cap:.2f}; no API call made")
             if self.mock: return mock_fn()
             extra = {"output_config": {"effort": EFFORT[model]}} if model in EFFORT else {}
             async with self.c.messages.stream(model=model, max_tokens=max_tokens, extra_body=extra or None,
@@ -274,6 +287,8 @@ async def main():
     ap.add_argument("--root", default="results"); ap.add_argument("--subtlety", default=SUBTLETY)
     ap.add_argument("--reps", type=int, default=1)
     ap.add_argument("--prompt-file")   # default: monitor_prompt.txt (PROMPT above)
+    ap.add_argument("--shuffle", type=int)   # seed for shuffling cell order within each rep; default: fixed order
+    ap.add_argument("--cost-cap", type=float); ap.add_argument("--cost-roots")   # $; comma-separated roots summed (default: --root)
     a = ap.parse_args()
     global ROOT, SUBT, PROMPT
     ROOT = a.root + "_mock" if a.mock else a.root   # mock never touches real results
@@ -289,11 +304,13 @@ async def main():
             if t.get("gen_version") != GEN_VERSION or t.get("subtlety") != SUBT:
                 sys.exit(f"STALE {ROOT}/ ({f}: v{t.get('gen_version')}/{t.get('subtlety')} vs v{GEN_VERSION}/{SUBT}). Delete {ROOT}/ and rerun.")
     cl = Client(a.mock)
+    if a.cost_cap is not None: cl.cap, cl.cost_roots = a.cost_cap, (a.cost_roots or ROOT).split(",")
     if a.cmd == "tokens": await tokens(cl, rng_list(a.seeds)); return
     results = []
     for rep in range(1, a.reps + 1):   # rep 1 writes the per-log triage cache; later reps reuse it
-        results += await asyncio.gather(*[run_one(cl, n, s, c, t, rep) for t in rng_list(a.totals) for c in a.conds.split(",")
-                                          for n in rng_list(a.ns) for s in rng_list(a.seeds)], return_exceptions=True)
+        jobs = [(t, c, n, s) for t in rng_list(a.totals) for c in a.conds.split(",") for n in rng_list(a.ns) for s in rng_list(a.seeds)]
+        if a.shuffle is not None: random.Random(a.shuffle * 100 + rep).shuffle(jobs)
+        results += await asyncio.gather(*[run_one(cl, n, s, c, t, rep) for t, c, n, s in jobs], return_exceptions=True)
     errs = [r for r in results if isinstance(r, Exception)]
     for e in errs: print("JOB ERROR:", repr(e))
     if errs: print(f"{len(errs)} jobs failed; rerun the same command to retry them (finished ones are skipped).")
