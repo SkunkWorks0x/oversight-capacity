@@ -273,10 +273,14 @@ async def main():
     ap.add_argument("--effort", choices=["low", "medium"], default="medium")
     ap.add_argument("--root", default="results"); ap.add_argument("--subtlety", default=SUBTLETY)
     ap.add_argument("--reps", type=int, default=1)
+    ap.add_argument("--prompt-file")   # default: monitor_prompt.txt (PROMPT above)
     a = ap.parse_args()
-    global ROOT, SUBT
+    global ROOT, SUBT, PROMPT
     ROOT = a.root + "_mock" if a.mock else a.root   # mock never touches real results
     SUBT = a.subtlety; EFFORT[MONITOR] = a.effort
+    if a.prompt_file:
+        PROMPT = open(a.prompt_file).read()
+        assert "{LOG}" in PROMPT and "{MAX}" in PROMPT, f"{a.prompt_file} lacks {{LOG}} or {{MAX}}"
     if a.cmd == "report": report(); return
     ld = os.path.join(ROOT, "logs")   # guard: finished cells are skipped before get_log, so check up front
     for f in (os.listdir(ld) if os.path.isdir(ld) else []):

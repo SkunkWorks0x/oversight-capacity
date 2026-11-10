@@ -1,0 +1,6 @@
+variant              | N= 1 exact | N= 4 exact | N=16 exact | N=64 exact | total
+per-stream           |    50/50   |    50/50   |    50/50   |    50/50   | 200/200
+global               |    50/50   |    50/50   |    50/50   |    50/50   | 200/200
+global, label-blind  |    50/50   |    50/50   |    50/50   |    50/50   | 200/200
+
+mismatches (variant, N, seed, {action: (truth, replay)}): 0

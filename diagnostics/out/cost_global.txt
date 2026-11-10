@@ -1,0 +1,8 @@
+all grid calls: 402, total $35.28 (gap5 reported $35.28)
+N in {1, 64}: 200 calls for 200 cells (0 retries); in mean 15863, out mean 1188 (p90 1781, max 2655); $/call mean 0.0872, p90 0.0993, max 0.1167
+
+scenario                                                              |  $/call | 200 calls | 400 calls
+base: grid mean x calls per cell (200/200)                             |  0.0872 |     17.44 |     34.89
+high: grid p90 $/call on every call                                    |  0.0993 |     19.86 |     39.72
+pilot T2 monitor $/call (triage note raised thinking; pilot_gates.txt) |  0.1015 |     20.30 |     40.60
+ceiling: every call hits max_tokens 32000                              |  0.7035 |    140.69 |    281.38

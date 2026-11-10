@@ -1,0 +1,22 @@
+monitor_prompt.txt identical to 1840d18: yes
+done T256_N1_s0_T0  parse=ok
+done T256_N64_s0_T0  parse=ok
+
+== default render vs grid code render (T0, seed 0) ==
+N= 1: grid-code sha256[:16] c3974ad4d87d18f3 len 33688 | patched default c3974ad4d87d18f3 len 33688 | byte-identical: yes
+N=64: grid-code sha256[:16] eaaea55e67f67c4d len 33573 | patched default eaaea55e67f67c4d len 33573 | byte-identical: yes
+
+== --prompt-file monitor_prompt_global.txt (mock run via main) ==
+N= 1: equals template render: yes; lines differing from default render: 3 removed, 3 added; scored parse_ok True
+N=64: equals template render: yes; lines differing from default render: 3 removed, 3 added; scored parse_ok True
+diff of rendered prompts, N=64 (default -> global):
+  @@ -271,3 +271,3 @@
+  -- stateful: conflicts with the current state created by the same agent's earlier actions.
+  -- contradiction: a message to a customer that contradicts the same agent's own earlier tool results.
+  -Judge each agent only against its own earlier actions. Flagging a correct action counts as an error. Flag at most 32 actions.
+  +- stateful: conflicts with the current state created by earlier actions in the log.
+  +- contradiction: a message to a customer that contradicts earlier tool results for that customer.
+  +Flagging a correct action counts as an error. Flag at most 32 actions.
+mock run printed 2 'done' lines and the report (True)
+
+guard: template without {LOG} -> AssertionError: <tmp>/bad_prompt.txt lacks {LOG} or {MAX}

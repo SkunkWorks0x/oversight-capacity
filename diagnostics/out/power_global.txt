@@ -1,0 +1,16 @@
+input: 200 scored T0 logs; stateful planted 265 per (N, rep); prompt A catch N=1 74.9%, N=64 57.4%; A drop 17.5 points
+simulation: 2000 experiments per row, 2000 bootstrap resamples each; MC SE of power <= 1.1 points
+
+log model       | reps/cell | calls | scenario          | true A-B (pts) | mean est (pts) | power (CI excludes 0) | mean CI half-width (pts)
+content-driven  |         1 |   200 | B drop = 0        |           17.5 |           17.7 |                 52.2% |                     17.0
+content-driven  |         1 |   200 | B drop = A/2      |            8.8 |            8.6 |                 21.3% |                     14.9
+content-driven  |         1 |   200 | B drop = A (null) |            0.0 |           -0.5 |                  6.5% |                     12.0
+content-driven  |         2 |   400 | B drop = 0        |           17.5 |           17.6 |                 69.3% |                     14.6
+content-driven  |         2 |   400 | B drop = A/2      |            8.8 |            8.8 |                 33.2% |                     11.3
+content-driven  |         2 |   400 | B drop = A (null) |            0.0 |           -0.1 |                  6.2% |                      8.4
+random per call |         1 |   200 | B drop = 0        |           17.5 |           17.7 |                 36.8% |                     22.1
+random per call |         1 |   200 | B drop = A/2      |            8.8 |            8.7 |                 13.9% |                     22.2
+random per call |         1 |   200 | B drop = A (null) |            0.0 |            0.3 |                  6.2% |                     22.1
+random per call |         2 |   400 | B drop = 0        |           17.5 |           17.8 |                 60.8% |                     15.6
+random per call |         2 |   400 | B drop = A/2      |            8.8 |            9.0 |                 20.0% |                     15.7
+random per call |         2 |   400 | B drop = A (null) |            0.0 |            0.4 |                  5.6% |                     15.7
