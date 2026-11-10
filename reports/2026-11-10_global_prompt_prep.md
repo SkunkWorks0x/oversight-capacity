@@ -176,3 +176,57 @@ pilot T2 monitor $/call (triage note raised thinking; pilot_gates.txt) |  0.1015
 ceiling: every call hits max_tokens 32000                              |  0.7035 |    140.69 |    281.38
 ```
 **Call counts.** My independent count is 50 seeds × 2 N × 2 prompts × R reps = 200 × R, which matches the 200 / 400 asked for (1 / 2 reps, both prompts run fresh). If the existing A grid were reused instead, B alone at 2 reps is 200 calls. That option was not simulated, and it mixes run dates. Prompt B's output length is unknown; the "pilot T2" row is the one observed case where a prompt change raised thinking.
+
+---
+
+## 6. Staged design, Stage 1 (added after commit 96ed774; offline, not pre-registered)
+
+Stage 1 runs prompts A and B at N=64 only, on seeds 0–49, with 1 or 2 reps per cell (100 or 200 calls).
+- **Estimate:** B − A stateful catch at N=64, with reps averaged per seed.
+- **Test:** the same paired seed-level percentile bootstrap as §4.
+- **B assumption:** each B log is drawn from A's N=1 logs with probability w, otherwise from A's N=64 logs. w = 1 is the full lift (B at N=64 reaches A's N=1 rate), w = 0.5 is half the lift, and w = 0 is the null, which gives the false-positive rate.
+- **Models:** both log models from §4.
+- **RNG:** Stage 1 has its own seed, 20261111. The rest of `power_global.py`'s output is unchanged: its first 16 lines are `cmp`-identical to commit 96ed774.
+- **Cost:** the grid's N=64 dollars per cell; the high case uses the pilot's T2 monitor dollars per call.
+
+Output (`diagnostics/out/power_global.txt`, Stage 1 lines, verbatim):
+```
+== Stage 1: prompts A and B at N=64 only; B - A stateful catch, reps averaged per seed; paired seed-level bootstrap ==
+true lift = w x (A N=1 - A N=64) = w x 17.5 points; cost: grid N=64 $0.0858/cell (100 calls), high = pilot T2 monitor $0.1015/call
+log model       | reps/cell | calls | scenario          | true B-A (pts) | mean est (pts) | CI excludes 0 | mean CI half-width (pts) | cost $ | cost high $
+content-driven  |         1 |   100 | full lift         |           17.5 |           17.3 |         69.8% |                     14.4 |   8.58 |       10.15
+content-driven  |         1 |   100 | half lift         |            8.8 |            8.8 |         29.2% |                     11.7 |   8.58 |       10.15
+content-driven  |         1 |   100 | null (B = A)      |            0.0 |            0.1 |          6.4% |                      7.6 |   8.58 |       10.15
+content-driven  |         2 |   200 | full lift         |           17.5 |           17.7 |         90.0% |                     13.0 |  17.15 |       20.30
+content-driven  |         2 |   200 | half lift         |            8.8 |            8.7 |         44.3% |                      9.2 |  17.15 |       20.30
+content-driven  |         2 |   200 | null (B = A)      |            0.0 |           -0.1 |          7.1% |                      5.4 |  17.15 |       20.30
+random per call |         1 |   100 | full lift         |           17.5 |           17.6 |         58.5% |                     15.7 |   8.58 |       10.15
+random per call |         1 |   100 | half lift         |            8.8 |            9.0 |         20.2% |                     16.0 |   8.58 |       10.15
+random per call |         1 |   100 | null (B = A)      |            0.0 |            0.2 |          6.1% |                     15.9 |   8.58 |       10.15
+random per call |         2 |   200 | full lift         |           17.5 |           17.5 |         85.2% |                     11.1 |  17.15 |       20.30
+random per call |         2 |   200 | half lift         |            8.8 |            8.9 |         34.2% |                     11.3 |  17.15 |       20.30
+random per call |         2 |   200 | null (B = A)      |            0.0 |           -0.1 |          6.3% |                     11.2 |  17.15 |       20.30
+CI excludes 0 = power on lift rows, false-positive rate on null rows
+```
+
+**What the table shows.**
+
+| Scenario | 200 calls (2 reps) | 100 calls (1 rep) |
+|---|---|---|
+| Full lift | power 85.2–90.0% | 58.5–69.8% |
+| Half lift | power 34.2–44.3% | 20.2–29.2% |
+| Null (false-positive rate) | 6.3–7.1% | 6.1–6.4% |
+
+Cost is $17.15 for 200 calls ($20.30 in the high case) and $8.58 for 100 calls ($10.15).
+
+Comparison with §4. The full-lift world here is the same world as §4's "B drop = 0" (B at N=1 equals A at N=1, and B at N=64 reaches that rate). In that world, Stage 1 at 200 calls has more power (85.2–90.0%) than the full design at 400 calls (60.8–69.3%).
+
+**Caveats.**
+
+| Caveat | Consequence |
+|---|---|
+| Stage 1 tests a narrower question than §4 | It detects a B effect at N=64 only. It can't tell a stream-specific lift from B being a better prompt at every N. The interaction (A drop − B drop) needs N=1 data for both prompts. |
+| B at N=1 is unobserved | It is assumed to equal A at N=1. In the pilot, a prompt-level change (the triage note) raised N=1 stateful catch from 79.5% to 97.1% (PREREG Amendment 7). |
+| The false-positive rate is above the nominal 5% | 6.1–7.1% across rows; highest in content-driven with 2 reps (7.1%; the script prints MC SE of power ≤ 1.1 points). |
+| Content-driven figures are optimistic | They draw from only 2 observed reps per cell. Its 5.4-point null half-width reflects that. |
+| No pre-registered analysis exists for any stage | A stopping rule, and the Stage 2 trigger, would need to be fixed before any data. |
