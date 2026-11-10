@@ -1,0 +1,2 @@
+line 178 2026-11-10T02:14:50.847Z: "All 200 grid logs are present, and the header stays at 673 characters for every N, so the per-action prompt doesn't vary with N"
+line 287 2026-11-10T02:22:17.720Z: 'Step 1 finished cleanly: all 400 grid cells passed, with $35'

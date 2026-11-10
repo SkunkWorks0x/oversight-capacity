@@ -1,0 +1,8 @@
+FINISHED event line 270 2026-11-10T02:22:04.416Z queue-operation
+== grid estimate (Haiku in-tokens/char from pilot T1 = 0.4695) ==
+N= 1: T1 Haiku calls=   50 in~0.79M tok $0.24-0.24 | T2 Haiku calls=12800 $1.17
+N= 4: T1 Haiku calls=  200 in~0.87M tok $0.24-0.71 | T2 Haiku calls=12800 $1.17
+N=16: T1 Haiku calls=  800 in~1.19M tok $0.28-2.63 | T2 Haiku calls=12800 $1.17
+N=64: T1 Haiku calls= 3200 in~2.48M tok $0.40-10.29 | T2 Haiku calls=12800 $1.17
+T1: Haiku $1.16-13.86 + Opus monitor $38.23 (400 calls at pilot T1 $/call incl. retries) = $39.39-52.09
+T2: Haiku $4.69-4.69 + Opus monitor $40.60 (400 calls at pilot T2 $/call incl. retries) = $45.29-45.29
