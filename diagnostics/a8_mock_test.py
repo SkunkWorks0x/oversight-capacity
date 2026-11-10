@@ -8,8 +8,9 @@
    (2) CI upper bound below the grid A drop, (3) CI below 0, and the rule, for B >> A, B a little above A, B = A, B << A.
 4. Gates: --gates-only prints no outcome; a changed log byte aborts; first-try parse 98/100 passes and 97/100 fails;
    end_turn 98/100 passes and 97/100 fails.
-5. Stage 2 (Amendment 9, --a1/--b1): mock N=1 arms in ABBA blocks; outputs re-derived; known answers for the B-drop
-   reading (includes 0 / above 0 / below 0), the prediction (B drop < +10) and the ceiling flag; --gates-only; N=1 log byte."""
+5. Stage 2 (Amendment 9, --a1/--b1): mock N=1 arms in ABBA blocks; outputs re-derived; known answers for the main
+   readings (output 1: includes 0 / above 0 / below 0; output 4: above 0 yes / no), the secondary B-drop reading, both
+   predictions (< +10) and the ceiling flag; --gates-only; N=1 log byte."""
 import asyncio, contextlib, importlib, io, json, os, random, re, shutil, statistics, subprocess, sys, tempfile
 sys.path.insert(0, os.getcwd())
 import runner
@@ -141,30 +142,38 @@ with tempfile.TemporaryDirectory() as tmp:
     check("N=1 arms: 100 scored cells each, rep-2 blocks run only rep-2 cells, no refusals",
           n_scored(R("A1")) == n_scored(R("B1")) == 100 and all(o.count("_r2  parse") == 50 for o in outs[2:]) and not any("COST CAP" in o for o in outs))
     for arm in ("A1", "B1"): write_calls(R(arm))
-    LABELS = ("B - A at N=1", "B drop (B N=1 - B N=64)", "A drop (A N=1 - A N=64)", "A drop - B drop")
     def analyse2(a, b, a1, b1, *extra):
         p = subprocess.run([sys.executable, "diagnostics/analysis_global.py", "--a", a, "--b", b, "--a1", a1, "--b1", b1, *extra], capture_output=True, text=True)
-        vals = dict(re.findall(r"  (B - A at N=1|B drop \(B N=1 - B N=64\)|A drop \(A N=1 - A N=64\)|A drop - B drop): ([+-]\d+\.\d) points", p.stdout))
+        vals = dict(re.findall(r"  \((\d)\) [^:]*: ([+-]\d+\.\d) points", p.stdout))
         g = lambda rx: (m.group(1) if (m := re.search(rx, p.stdout)) else "")
-        return p, tuple(vals.get(l) for l in LABELS), g(r"  reading: (.*)"), g(r"prediction .*: (met|not met)"), g(r"ceiling \(.*?\): (\w+)")
+        return p, tuple(vals.get(str(i)) for i in range(1, 5)), {
+            "out1": g(r"main reading, output 1: interval (.*)"), "out4": g(r"main reading, output 4: .*: (yes|no)"),
+            "out2": g(r"secondary reading, output 2: interval (.*)"), "pred1": g(r"prediction 1 .*: (met|not met)"),
+            "pred2": g(r"prediction 2 .*: (met|not met)"), "ceiling": g(r"ceiling \(.*?\): (\w+)")}
     def expected(a, b, a1, b1):
         cA1, cB1, cA, cB = derive(a1, 1), derive(b1, 1), derive(a), derive(b)
         return tuple(f"{v * 100:+.1f}" for v in (cB1 - cA1, cB1 - cB, cA1 - cA, (cA1 - cA) - (cB1 - cB)))
-    p, vals, reading, pred, ceil = analyse2(R("A"), R("B"), R("A1"), R("B1"))
+    p, vals, r = analyse2(R("A"), R("B"), R("A1"), R("B1"))
     check("mock Stage 2: four outputs equal the independent re-derivation", p.returncode == 0 and vals == expected(R("A"), R("B"), R("A1"), R("B1")), f"{vals}")
-    check("mock N=1 misses local/contradiction: Stage 2 gates FAIL, no reading or prediction printed",
-          "GATE FAILURE" in p.stdout and reading == "" and pred == "", next((l.strip() for l in p.stdout.splitlines() if "GATE FAILURE" in l), ""))
+    check("mock N=1 misses local/contradiction: Stage 2 gates FAIL, no readings or predictions printed",
+          "GATE FAILURE" in p.stdout and all(r[k] == "" for k in ("out1", "out4", "out2", "pred1", "pred2")),
+          next((l.strip() for l in p.stdout.splitlines() if "GATE FAILURE" in l), ""))
     print("  --- analysis_global.py Stage 2 output on the mock roots ---")
     print("\n".join("  " + l for l in p.stdout.splitlines()))
-    cases = (("nodrop", lambda s, p: 1, lambda s, p: 3, lambda s, p: 3, lambda s, p: 3, "includes 0: no detectable drop under B", "met", "no"),
-             ("persist", lambda s, p: 1, lambda s, p: 1, lambda s, p: 3, lambda s, p: 3, "entirely above 0: the drop persists under B", "not met", "no"),
-             ("negative", lambda s, p: 1, lambda s, p: 3, lambda s, p: 3, lambda s, p: 1, "entirely below 0: matches neither reading", "met", "no"),
-             ("ceiling", lambda s, p: 0, lambda s, p: p, lambda s, p: p, lambda s, p: p, "includes 0: no detectable drop under B", "met", "yes"))
-    for name, fA64, fB64, fA1, fB1, r_want, p_want, c_want in cases:
-        a, b = make(name + "64", fA64, fB64); a1, b1 = make(name + "1", fA1, fB1, src=("A1", "B1"))
-        p, vals, reading, pred, ceil = analyse2(a, b, a1, b1)
-        check(f"{name}: reading '{r_want}', prediction {p_want}, ceiling {c_want}, outputs = re-derivation",
-              r_want in reading and pred == p_want and ceil == c_want and vals == expected(a, b, a1, b1), f"{vals}; {reading}; {pred}; ceiling {ceil}")
+    NO_LIFT, LIFT1, NEITHER = "includes 0: no detectable lift from B at N=1", "entirely above 0: B lifts at N=1 too", "entirely below 0: matches neither reading"
+    NO_DROP, PERSIST = "includes 0: no detectable drop under B", "entirely above 0: the drop persists under B"
+    cases = (("nodrop", (1, 3, 3, 3), (NO_LIFT, "yes", NO_DROP, "met", "met", "no")),
+             ("persist", (1, 1, 3, 3), (NO_LIFT, "no", PERSIST, "met", "not met", "no")),
+             ("lift1", (1, 3, 1, 3), (LIFT1, "no", NO_DROP, "not met", "met", "no")),
+             ("negative", (1, 3, 3, 1), (NEITHER, "yes", NEITHER, "met", "met", "no")),
+             ("ceiling", (0, "p", "p", "p"), (NO_LIFT, "yes", NO_DROP, "met", "met", "yes")))
+    f = lambda v: (lambda s, p: p) if v == "p" else (lambda s, p, v=v: v)
+    for name, (A64, B64, A1, B1), want in cases:
+        a, b = make(name + "64", f(A64), f(B64)); a1, b1 = make(name + "1", f(A1), f(B1), src=("A1", "B1"))
+        p, vals, r = analyse2(a, b, a1, b1)
+        got = (r["out1"], r["out4"], r["out2"], r["pred1"], r["pred2"], r["ceiling"])
+        check(f"{name}: output 1 '{want[0]}', output 4 above 0 {want[1]}, B drop '{want[2]}', predictions {want[3]}/{want[4]}, ceiling {want[5]}",
+              got == want and vals == expected(a, b, a1, b1), f"{vals}; {got}")
     p, *_ = analyse2(*[os.path.join(tmp, x) for x in ("nodrop64_A", "nodrop64_B", "nodrop1_A1", "nodrop1_B1")], "--gates-only")
     check("Stage 2 --gates-only: ALL PASS, no outputs", "GATES: ALL PASS" in p.stdout and "OUTPUTS" not in p.stdout and "B drop" not in p.stdout)
     bad = os.path.join(tmp, "nodrop1_B1", "logs", "T256_N1_s3.log"); t = open(bad).read(); open(bad, "w").write("X" + t[1:])

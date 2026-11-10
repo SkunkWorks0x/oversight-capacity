@@ -31,3 +31,14 @@ random per call |         2 |   200 | full lift         |           17.5 |      
 random per call |         2 |   200 | half lift         |            8.8 |            8.9 |         34.2% |                     11.3 |  17.15 |       20.30
 random per call |         2 |   200 | null (B = A)      |            0.0 |           -0.1 |          6.3% |                     11.2 |  17.15 |       20.30
 CI excludes 0 = power on lift rows, false-positive rate on null rows
+
+== Stage 2: B - A at N=1 (A and B at N=1, 2 reps, 200 calls); lift from Stage 1 B - A = +20.4 points (diagnostics/out/analysis_global_a8.txt); grid A at N=1 74.9% ==
+per log: each B log's catch fraction + 20.4 points, capped at 100% per log; engagement: each B log fully caught with probability 0.813, else drawn as an A log (pooled lift +20.4)
+log model       | reps/cell | calls | scenario                 | mean est (pts) | CI excludes 0 | mean CI half-width (pts)
+content-driven  |         2 |   200 | zero lift                |           -0.2 |          6.3% |                      6.5
+content-driven  |         2 |   200 | lift per log, capped     |            6.4 |         56.2% |                      6.2
+content-driven  |         2 |   200 | lift via engagement      |           20.3 |        100.0% |                      9.4
+random per call |         2 |   200 | zero lift                |           -0.3 |          5.7% |                     10.9
+random per call |         2 |   200 | lift per log, capped     |            6.3 |         24.1% |                      9.9
+random per call |         2 |   200 | lift via engagement      |           20.2 |         99.8% |                      8.7
+CI excludes 0 = power on lift rows, false-positive rate on zero-lift rows

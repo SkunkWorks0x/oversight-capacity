@@ -79,3 +79,26 @@ for model in ("content-driven", "random per call"):
             m, p, h = sim64(model, R, w)
             print(f"{model:15s} | {R:9d} | {100 * R:5d} | {name:17s} | {w * drop_A * 100:14.1f} | {m * 100:14.1f} | {p:13.1%} | {h * 100:24.1f} | {100 * R * cell64:6.2f} | {100 * R * t2:11.2f}")
 print("CI excludes 0 = power on lift rows, false-positive rate on null rows")
+
+# ---- Stage 2 (Amendment 9): B - A at N=1, both prompts at N=1, 2 reps, own RNG seed
+lift = float(re.search(r"B - A ([+-]\d+\.\d) points", open("diagnostics/out/analysis_global_a8.txt").read()).group(1)) / 100
+pA1 = obs[1].mean(1).sum() / planted.sum()
+q = lift / (1 - pA1)
+rng = np.random.default_rng(20261112)
+
+def sim_n1(model, R, kind):
+    A, B, cap = logs(model, 1, R).mean(2), logs(model, 1, R), planted[None, :, None]
+    if kind == "per log": B = np.minimum(B + lift * cap, cap)
+    elif kind == "engagement": B = np.where(rng.random((NSIM, 50, R)) < q, cap, B)
+    return boot(B.mean(2) - A)
+
+print(f"\n== Stage 2: B - A at N=1 (A and B at N=1, 2 reps, 200 calls); lift from Stage 1 B - A = +{lift * 100:.1f} points "
+      f"(diagnostics/out/analysis_global_a8.txt); grid A at N=1 {pA1:.1%} ==")
+print(f"per log: each B log's catch fraction + {lift * 100:.1f} points, capped at 100% per log; "
+      f"engagement: each B log fully caught with probability {q:.3f}, else drawn as an A log (pooled lift +{lift * 100:.1f})")
+print("log model       | reps/cell | calls | scenario                 | mean est (pts) | CI excludes 0 | mean CI half-width (pts)")
+for model in ("content-driven", "random per call"):
+    for kind, name in (("zero", "zero lift"), ("per log", "lift per log, capped"), ("engagement", "lift via engagement")):
+        m, p, h = sim_n1(model, 2, kind)
+        print(f"{model:15s} | {2:9d} | {200:5d} | {name:24s} | {m * 100:14.1f} | {p:13.1%} | {h * 100:24.1f}")
+print("CI excludes 0 = power on lift rows, false-positive rate on zero-lift rows")

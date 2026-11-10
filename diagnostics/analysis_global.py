@@ -6,9 +6,10 @@ Stage 1 primary: B - A pooled stateful catch at N=64 (sum caught / sum planted o
 seed-level paired percentile bootstrap (A and B resampled on the same seeds), 95% CI. Gates per arm come first
 (--gates-only stops there); a gate failure means the estimate is printed and the three readings are not. Readings:
 (1) CI above 0; (2) CI upper bound below the grid's A drop N=1 -> N=64 (unrounded); (3) CI below 0.
-Stage 2 outputs (descriptive; all four cells of a seed resampled together): B - A at N=1; B drop = B N=1 - B N=64;
-A drop = A N=1 - A N=64; A drop - B drop. Reading on the B drop interval; prediction B drop point estimate < +10 points;
-ceiling flag if either arm is >= 95% at N=1. Secondary outputs are descriptive."""
+Stage 2 outputs (descriptive; all four cells of a seed resampled together): (1) B - A at N=1; (2) B drop = B N=1 - B N=64;
+(3) A drop = A N=1 - A N=64; (4) A drop - B drop. Main readings on outputs 1 and 4 (within-session contrasts); secondary
+reading on output 2 (session-confounded); predictions: point estimates of outputs 1 and 2 < +10 points; ceiling flag if
+either arm is >= 95% at N=1. Secondary outputs are descriptive."""
 import argparse, json, os, random, re, statistics, sys
 sys.path.insert(0, os.getcwd())
 from analysis import ci
@@ -152,19 +153,21 @@ def stage2(a, arms64):
     print(f"\nOUTPUTS (descriptive): pooled stateful catch, reps averaged per cell; {a.boot} seed-level paired bootstrap resamples "
           f"(seed {a.boot_seed}), all four cells of a seed resampled together; Stage 1 and Stage 2 ran in separate sessions")
     print(f"  catch: A N=1 {c[('A', 1)]:.1%}   B N=1 {c[('B', 1)]:.1%}   A N=64 (Stage 1) {c[('A', 64)]:.1%}   B N=64 (Stage 1) {c[('B', 64)]:.1%}")
-    for i, label in enumerate(("B - A at N=1", "B drop (B N=1 - B N=64)", "A drop (A N=1 - A N=64)", "A drop - B drop")):
+    for i, label in enumerate(("(1) B - A at N=1 [within-session; main]", "(2) B drop = B N=1 - B N=64 [session-confounded; secondary]",
+                               "(3) A drop = A N=1 - A N=64 [session-confounded; secondary]",
+                               "(4) A drop - B drop = Stage 1 B - A at N=64 - Stage 2 B - A at N=1 [within-session contrasts; main]")):
         print(f"  {label}: {point[i] * 100:+.1f} points  95% interval [{ints[i][0] * 100:+.1f}, {ints[i][1] * 100:+.1f}]")
     ceiling = [k for k in "AB" if c[(k, 1)] >= 0.95]
     print("  ceiling (either arm >= 95% at N=1): " + (f"yes, arm {' and '.join(ceiling)}; drops and A drop - B drop are ceiling-limited" if ceiling else "no"))
     if ok:
-        lo, hi = ints[1]
-        reading = ("B drop interval entirely above 0: the drop persists under B" if lo > 0 else
-                   "B drop interval entirely below 0: matches neither reading" if hi < 0 else
-                   "B drop interval includes 0: no detectable drop under B")
-        print(f"  reading: {reading}")
-        print(f"  prediction (B drop point estimate under +10 points): {'met' if point[1] < 0.10 else 'not met'}")
+        side = lambda lo, hi, above, zero: f"entirely above 0: {above}" if lo > 0 else "entirely below 0: matches neither reading" if hi < 0 else f"includes 0: {zero}"
+        print(f"  main reading, output 1: interval {side(*ints[0], 'B lifts at N=1 too', 'no detectable lift from B at N=1')}")
+        print(f"  main reading, output 4: interval entirely above 0 (the lift is larger at N=64 than at N=1): {'yes' if ints[3][0] > 0 else 'no'}")
+        print(f"  secondary reading, output 2: interval {side(*ints[1], 'the drop persists under B', 'no detectable drop under B')}")
+        print(f"  prediction 1 (B - A at N=1 point estimate under +10 points): {'met' if point[0] < 0.10 else 'not met'}")
+        print(f"  prediction 2 (B drop point estimate under +10 points): {'met' if point[1] < 0.10 else 'not met'}")
     else:
-        print("  GATE FAILURE: outputs printed, reading and prediction not given (Amendment 9). STOP.")
+        print("  GATE FAILURE: outputs printed, readings and predictions not given (Amendment 9). STOP.")
 
     print("\nSECONDARY (descriptive), Stage 2 arms at N=1:")
     for k in "AB": describe(k, arms1[k], 1, sum(avg(arms1[k][1], engaged_f)) / 50)
