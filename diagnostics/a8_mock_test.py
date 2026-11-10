@@ -7,7 +7,9 @@
 3. Known answers (scored rows edited so every gate passes; one end_turn call record per cell): readings (1) CI above 0,
    (2) CI upper bound below the grid A drop, (3) CI below 0, and the rule, for B >> A, B a little above A, B = A, B << A.
 4. Gates: --gates-only prints no outcome; a changed log byte aborts; first-try parse 98/100 passes and 97/100 fails;
-   end_turn 98/100 passes and 97/100 fails."""
+   end_turn 98/100 passes and 97/100 fails.
+5. Stage 2 (Amendment 9, --a1/--b1): mock N=1 arms in ABBA blocks; outputs re-derived; known answers for the B-drop
+   reading (includes 0 / above 0 / below 0), the prediction (B drop < +10) and the ceiling flag; --gates-only; N=1 log byte."""
 import asyncio, contextlib, importlib, io, json, os, random, re, shutil, statistics, subprocess, sys, tempfile
 sys.path.insert(0, os.getcwd())
 import runner
@@ -16,7 +18,7 @@ passed = []
 def check(name, cond, detail=""):
     passed.append(bool(cond)); print(f"{'PASS' if cond else 'FAIL'}  {name}" + (f"  ({detail})" if detail else ""))
 
-def run(tmp, name, reps, extra, spend_out=None):
+def run(tmp, name, reps, extra, spend_out=None, n=64):
     importlib.reload(runner); random.seed(f"{name}-{reps}")
     if spend_out is not None:
         orig = runner.mock_monitor
@@ -27,8 +29,8 @@ def run(tmp, name, reps, extra, spend_out=None):
         runner.mock_monitor = mock
     logs = os.path.join(tmp, name + "_mock", "logs"); os.makedirs(logs, exist_ok=True)
     for s in range(50):
-        for ext in (".log", ".truth.json"): shutil.copy(f"results_grid/logs/T256_N64_s{s}{ext}", logs)
-    sys.argv = ["runner.py", "run", "--mock", "--ns", "64", "--seeds", "0-49", "--conds", "T0", "--subtlety", "d2h",
+        for ext in (".log", ".truth.json"): shutil.copy(f"results_grid/logs/T256_N{n}_s{s}{ext}", logs)
+    sys.argv = ["runner.py", "run", "--mock", "--ns", str(n), "--seeds", "0-49", "--conds", "T0", "--subtlety", "d2h",
                 "--effort", "low", "--reps", str(reps), "--root", os.path.join(tmp, name)] + extra
     with contextlib.redirect_stdout(io.StringIO()) as out: asyncio.run(runner.main())
     return out.getvalue()
@@ -53,10 +55,10 @@ def analyse(a, b, *extra):
     m = re.search(r"B - A ([+-]\d+\.\d) points  95% CI \[([+-]\d+\.\d), ([+-]\d+\.\d)\]", p.stdout)
     rule = re.search(r"Amendment 8 rule: (.*)", p.stdout)
     return p, (m.groups() if m else None), (rule.group(1) if rule else ""), tuple(re.findall(r"reading \d: .*: (yes|no)", p.stdout))
-def derive(root):
+def derive(root, n=64):
     c, pl = [], []
     for s in range(50):
-        rs = [json.load(open(os.path.join(root, "scored", f"T256_N64_s{s}_T0{x}.json"))) for x in ("", "_r2")]
+        rs = [json.load(open(os.path.join(root, "scored", f"T256_N{n}_s{s}_T0{x}.json"))) for x in ("", "_r2")]
         c.append(statistics.mean(r["by_type"]["stateful"]["caught"] for r in rs)); pl.append(rs[0]["by_type"]["stateful"]["planted"])
     return sum(c) / sum(pl)
 
@@ -91,9 +93,9 @@ with tempfile.TemporaryDirectory() as tmp:
     print("\n".join("  " + l for l in p.stdout.splitlines()))
 
     print("\n== 3. known answers (all gates made to pass) ==")
-    def make(name, fa, fb):
+    def make(name, fa, fb, src=("A", "B")):
         roots = []
-        for arm, f in (("A", fa), ("B", fb)):
+        for arm, f in zip(src, (fa, fb)):
             dst = os.path.join(tmp, f"{name}_{arm}"); shutil.copytree(R(arm), dst)
             def fix(fn, r, f=f):
                 r["parse_ok"], r["attempts"] = True, 1
@@ -132,5 +134,41 @@ with tempfile.TemporaryDirectory() as tmp:
         p, _, rule, _ = analyse(a_root, b_root)
         line = next(l.strip() for l in p.stdout.split("Gates, arm B:")[1].splitlines() if "end_turn" in l)
         check(f"{k} of 100 B calls stopped at max_tokens: end_turn gate {want}", line.startswith(want) and (rule.startswith("GATE FAILURE") == (want == "FAIL")), line)
+
+    print("\n== 5. Stage 2 (Amendment 9): N=1 arms, ABBA blocks ==")
+    cap1 = ["--shuffle", "8", "--cost-cap", "25", "--cost-roots", f"{R('A1')},{R('B1')}"]
+    outs = [run(tmp, "A1", 1, cap1, n=1), run(tmp, "B1", 1, cap1 + pB, n=1), run(tmp, "B1", 2, cap1 + pB, n=1), run(tmp, "A1", 2, cap1, n=1)]
+    check("N=1 arms: 100 scored cells each, rep-2 blocks run only rep-2 cells, no refusals",
+          n_scored(R("A1")) == n_scored(R("B1")) == 100 and all(o.count("_r2  parse") == 50 for o in outs[2:]) and not any("COST CAP" in o for o in outs))
+    for arm in ("A1", "B1"): write_calls(R(arm))
+    LABELS = ("B - A at N=1", "B drop (B N=1 - B N=64)", "A drop (A N=1 - A N=64)", "A drop - B drop")
+    def analyse2(a, b, a1, b1, *extra):
+        p = subprocess.run([sys.executable, "diagnostics/analysis_global.py", "--a", a, "--b", b, "--a1", a1, "--b1", b1, *extra], capture_output=True, text=True)
+        vals = dict(re.findall(r"  (B - A at N=1|B drop \(B N=1 - B N=64\)|A drop \(A N=1 - A N=64\)|A drop - B drop): ([+-]\d+\.\d) points", p.stdout))
+        g = lambda rx: (m.group(1) if (m := re.search(rx, p.stdout)) else "")
+        return p, tuple(vals.get(l) for l in LABELS), g(r"  reading: (.*)"), g(r"prediction .*: (met|not met)"), g(r"ceiling \(.*?\): (\w+)")
+    def expected(a, b, a1, b1):
+        cA1, cB1, cA, cB = derive(a1, 1), derive(b1, 1), derive(a), derive(b)
+        return tuple(f"{v * 100:+.1f}" for v in (cB1 - cA1, cB1 - cB, cA1 - cA, (cA1 - cA) - (cB1 - cB)))
+    p, vals, reading, pred, ceil = analyse2(R("A"), R("B"), R("A1"), R("B1"))
+    check("mock Stage 2: four outputs equal the independent re-derivation", p.returncode == 0 and vals == expected(R("A"), R("B"), R("A1"), R("B1")), f"{vals}")
+    check("mock N=1 misses local/contradiction: Stage 2 gates FAIL, no reading or prediction printed",
+          "GATE FAILURE" in p.stdout and reading == "" and pred == "", next((l.strip() for l in p.stdout.splitlines() if "GATE FAILURE" in l), ""))
+    print("  --- analysis_global.py Stage 2 output on the mock roots ---")
+    print("\n".join("  " + l for l in p.stdout.splitlines()))
+    cases = (("nodrop", lambda s, p: 1, lambda s, p: 3, lambda s, p: 3, lambda s, p: 3, "includes 0: no detectable drop under B", "met", "no"),
+             ("persist", lambda s, p: 1, lambda s, p: 1, lambda s, p: 3, lambda s, p: 3, "entirely above 0: the drop persists under B", "not met", "no"),
+             ("negative", lambda s, p: 1, lambda s, p: 3, lambda s, p: 3, lambda s, p: 1, "entirely below 0: matches neither reading", "met", "no"),
+             ("ceiling", lambda s, p: 0, lambda s, p: p, lambda s, p: p, lambda s, p: p, "includes 0: no detectable drop under B", "met", "yes"))
+    for name, fA64, fB64, fA1, fB1, r_want, p_want, c_want in cases:
+        a, b = make(name + "64", fA64, fB64); a1, b1 = make(name + "1", fA1, fB1, src=("A1", "B1"))
+        p, vals, reading, pred, ceil = analyse2(a, b, a1, b1)
+        check(f"{name}: reading '{r_want}', prediction {p_want}, ceiling {c_want}, outputs = re-derivation",
+              r_want in reading and pred == p_want and ceil == c_want and vals == expected(a, b, a1, b1), f"{vals}; {reading}; {pred}; ceiling {ceil}")
+    p, *_ = analyse2(*[os.path.join(tmp, x) for x in ("nodrop64_A", "nodrop64_B", "nodrop1_A1", "nodrop1_B1")], "--gates-only")
+    check("Stage 2 --gates-only: ALL PASS, no outputs", "GATES: ALL PASS" in p.stdout and "OUTPUTS" not in p.stdout and "B drop" not in p.stdout)
+    bad = os.path.join(tmp, "nodrop1_B1", "logs", "T256_N1_s3.log"); t = open(bad).read(); open(bad, "w").write("X" + t[1:])
+    p, *_ = analyse2(*[os.path.join(tmp, x) for x in ("nodrop64_A", "nodrop64_B", "nodrop1_A1", "nodrop1_B1")])
+    check("one byte changed in a Stage 2 N=1 log: analysis exits non-zero", p.returncode != 0 and "ABORT" in p.stderr + p.stdout)
 
 print(f"\n{sum(passed)}/{len(passed)} checks passed")
