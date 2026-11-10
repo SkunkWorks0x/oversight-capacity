@@ -1,0 +1,38 @@
+=== Amendment 8 (exploratory, post hoc): A = results_a8_A, B = results_a8_B; N=64, seeds 0-49, reps 1-2 ===
+
+Gates, arm A:
+  PASS  complete: 100 scored cells, nothing else in scored/, T0 / 256 / N=64 / effort low  (100 cells, 100 files)
+  PASS  logs byte-identical to the grid's  (50 seeds, .log and .truth.json)
+  PASS  parse success on the first try >= 98%  (100/100 first try; 0 retried; 0 failed after retry)
+  PASS  every call served by claude-opus-5-5  (100 design calls of 100 records)
+  PASS  stop end_turn on >= 98% of calls  (100/100)
+  PASS  FP rate < 5% of clean actions  (11/24000)
+  PASS  local catch >= 90%  (534/534)
+  PASS  contradiction catch >= 90%  (536/536)
+
+Gates, arm B:
+  PASS  complete: 100 scored cells, nothing else in scored/, T0 / 256 / N=64 / effort low  (100 cells, 100 files)
+  PASS  logs byte-identical to the grid's  (50 seeds, .log and .truth.json)
+  PASS  parse success on the first try >= 98%  (100/100 first try; 0 retried; 0 failed after retry)
+  PASS  every call served by claude-opus-5-5  (100 design calls of 100 records)
+  PASS  stop end_turn on >= 98% of calls  (100/100)
+  PASS  FP rate < 5% of clean actions  (9/24000)
+  PASS  local catch >= 90%  (534/534)
+  PASS  contradiction catch >= 90%  (536/536)
+
+PRIMARY: pooled stateful catch at N=64, reps averaged per cell; 10000 seed-level paired bootstrap resamples (seed 0)
+  A 60.0%   B 80.4%   B - A +20.4 points  95% CI [+9.4, +31.4]
+  grid A drop N=1 -> N=64 (pooled stateful catch, reps averaged, unrounded): +17.5472 points
+  reading 1: CI entirely above 0 (B catches more stateful errors at N=64): yes
+  reading 2: CI upper bound below the grid A drop (the instruction does not explain the whole drop): no
+  reading 3: CI entirely below 0 (B hurts): no
+  Amendment 8 rule: CI above 0. Stage 2 only with a separate OK; descriptive only.
+
+SECONDARY (descriptive):
+  arm A: local 100.0% [99.3%,100.0%]; stateful 60.0% [55.8%,64.1%]; contradiction 100.0% [99.3%,100.0%]
+         FP 11/24000; fp_decoy 4; parse first try 100/100; flags/log 14.0; engaged logs 64.0%; thinking median 0, >0 in 3/100 calls; spend $8.65
+  arm B: local 100.0% [99.3%,100.0%]; stateful 80.4% [76.8%,83.5%]; contradiction 100.0% [99.3%,100.0%]
+         FP 9/24000; fp_decoy 7; parse first try 100/100; flags/log 15.1; engaged logs 82.0%; thinking median 0, >0 in 17/100 calls; spend $8.97
+  engaged-log share B - A: +18.0 points  95% CI [+6.0, +30.0]
+  arm A minus grid A at N=64 (replication): +2.6 points  95% CI [-8.5, +13.3]
+  total spend, both arms: $17.61
