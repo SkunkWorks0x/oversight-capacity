@@ -136,3 +136,47 @@ for n in (4, 16, 64):
             else: split += 1
             mid += st[1] == st[0]
     print(f"N={n:2d}: {one + split} stateful errors; setup+cancel+error in one stream {one} ({one / (one + split):.0%}), split {split}; middle on same stream {mid}")
+
+# ---- section 8 (EXPLORATORY, design only, no outcomes)
+SLOT, CUST = re.compile(r'"slot": "S\d{2}-(\d{4}-B\d{4})"'), re.compile(r'"customer": "(C\d{4})"')
+print("\n== S8a EXPLORATORY: per stateful error, background send_message lines strictly between setup and error that mention"
+      " any slot (prefix-agnostic) or customer ID on the chain's lines ==")
+for n in NS:
+    hits, win, same = Counter(), 0, 0
+    for s in SEEDS:
+        _, ls, tr = L[(n, s)]
+        chained = {a for k in ("errors", "decoys", "noise") for e in tr[k] for a in e["chain"]}
+        for e in tr["errors"]:
+            if e["type"] != "stateful": continue
+            P = [int(a[1:]) - 1 for a in e["chain"]]; cl = [ls[p] for p in P]
+            assert SLOT.findall(cl[3]) == SLOT.findall(cl[0])   # matcher control: the error re-books the setup slot
+            ids = {x for l in cl for x in SLOT.findall(l) + CUST.findall(l)}
+            stream, k = LINE.match(cl[0]).group(2), 0
+            for p in range(P[0] + 1, P[3]):
+                m = LINE.match(ls[p])
+                if m.group(4) != "send_message" or f"A{p + 1:04d}" in chained: continue
+                win += 1; same += m.group(2) == stream
+                k += any(re.search(rf"\b{re.escape(x)}\b", ls[p]) for x in ids)
+            hits[k] += 1
+    print(f"N={n:2d}: {sum(hits.values())} stateful errors; errors by number of mentioning lines {dict(sorted(hits.items()))};"
+          f" background message lines in setup-error windows {win} (on the chain's own stream {same})")
+
+print("\n== S8b EXPLORATORY: N=64 streams (64 x 50 logs) by number of multi-event chains on the stream and whether it has other actions (background, local errors) ==")
+KIND = {"errors": "error", "decoys": "decoy", "noise": "noise"}
+grid, only = Counter(), Counter()
+for s in SEEDS:
+    _, ls, tr = L[(64, s)]
+    cid = {a: (k, i) for k in KIND for i, e in enumerate(tr[k]) if len(e["chain"]) > 1 for a in e["chain"]}
+    per = defaultdict(lambda: [set(), 0])
+    for l in ls:
+        m = LINE.match(l); a = "A" + m.group(3)
+        if a in cid: per[m.group(2)][0].add(cid[a])
+        else: per[m.group(2)][1] += 1
+    assert len(per) == 64
+    for chs, other in per.values():
+        grid[(len(chs), other > 0)] += 1
+        if len(chs) == 1 and other == 0:
+            k, i = next(iter(chs)); only[f"{KIND[k]} {tr[k][i]['type']}"] += 1
+print("chains on stream | no other actions | with other actions")
+for c in sorted({g[0] for g in grid}): print(f"{c:16d} | {grid[(c, False)]:16d} | {grid[(c, True)]}")
+print(f"streams containing only one chain's events (no other actions): {sum(only.values())} of {sum(grid.values())}; by chain {dict(sorted(only.items()))}")

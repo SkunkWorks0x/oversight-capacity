@@ -126,3 +126,15 @@ input tokens: served 'in' of attempt #0, reps 1 and 2 equal in all 200 (seed, N)
 N= 4: 265 stateful errors; setup+cancel+error in one stream 265 (100%), split 0; middle on same stream 265
 N=16: 265 stateful errors; setup+cancel+error in one stream 265 (100%), split 0; middle on same stream 265
 N=64: 265 stateful errors; setup+cancel+error in one stream 265 (100%), split 0; middle on same stream 265
+
+== S8a EXPLORATORY: per stateful error, background send_message lines strictly between setup and error that mention any slot (prefix-agnostic) or customer ID on the chain's lines ==
+N= 1: 265 stateful errors; errors by number of mentioning lines {0: 265}; background message lines in setup-error windows 887 (on the chain's own stream 887)
+N= 4: 265 stateful errors; errors by number of mentioning lines {0: 265}; background message lines in setup-error windows 887 (on the chain's own stream 217)
+N=16: 265 stateful errors; errors by number of mentioning lines {0: 265}; background message lines in setup-error windows 887 (on the chain's own stream 59)
+N=64: 265 stateful errors; errors by number of mentioning lines {0: 265}; background message lines in setup-error windows 887 (on the chain's own stream 0)
+
+== S8b EXPLORATORY: N=64 streams (64 x 50 logs) by number of multi-event chains on the stream and whether it has other actions (background, local errors) ==
+chains on stream | no other actions | with other actions
+               0 |                0 | 801
+               1 |              795 | 1604
+streams containing only one chain's events (no other actions): 795 of 3200; by chain {'decoy stateful': 530, 'error stateful': 265}

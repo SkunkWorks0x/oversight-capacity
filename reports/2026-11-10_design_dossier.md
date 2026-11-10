@@ -459,3 +459,38 @@ def apply_flags(text, top_k):
     return header + "\n\n" + "\n".join(out) + "\n"
 ```
 Placement (`runner.py:183`, quoted in §1): when `cond != "T0"` the note is prepended to the user message, before `You are reviewing…`, so it sits outside `<log>`. PREREG Amendment 7: "T1/T2 grid NOT RUN." The note was used only in the pilot.
+
+---
+
+## 8. EXPLORATORY (design only, no outcomes; added after commit 520ae26)
+
+Not pre-registered. Reads only `results_grid/logs`; no scored or raw results. Numbers come from `diagnostics/design_dossier.py` (sections S8a and S8b of `diagnostics/out/design_dossier.txt`).
+
+### 8a. Background messages between a stateful error's setup and its error that mention the chain's slot or customer
+
+Definitions (script): *window* = lines strictly between `chain[0]` (setup) and `chain[3]` (error). *Background message* = a `send_message` line that is on no error, decoy or noise chain. *Mention* = the line contains any slot (matched without its `Sxx-` prefix) or customer ID that appears on any of the chain's four lines. Matcher control (asserted): the error line re-books the setup line's slot.
+```
+N= 1: 265 stateful errors; errors by number of mentioning lines {0: 265}; background message lines in setup-error windows 887 (on the chain's own stream 887)
+N= 4: 265 stateful errors; errors by number of mentioning lines {0: 265}; background message lines in setup-error windows 887 (on the chain's own stream 217)
+N=16: 265 stateful errors; errors by number of mentioning lines {0: 265}; background message lines in setup-error windows 887 (on the chain's own stream 59)
+N=64: 265 stateful errors; errors by number of mentioning lines {0: 265}; background message lines in setup-error windows 887 (on the chain's own stream 0)
+```
+Zero at every N follows from `gen.py:109-110` and `gen.py:118`. Customers and slot numbers are unique per position, and message state never includes chain or noise events:
+```python
+    custs = rk.sample(range(1000, 10000), total)      # unique: no accidental customer collisions
+    slots = rk.sample(range(1000, 10000), total)        # unique, NON-sequential: no counter tell
+```
+```python
+    st = [{"booked": {}, "approved": [], "declined": []} for _ in range(n)]   # background only: no chains, no noise
+```
+
+### 8b. N=64: streams containing only one chain's events
+
+Definitions (script): a *chain* is a multi-event error, decoy or noise chain (a local error is one action and counts as "other"). Streams = 64 × 50 logs.
+```
+chains on stream | no other actions | with other actions
+               0 |                0 | 801
+               1 |              795 | 1604
+streams containing only one chain's events (no other actions): 795 of 3200; by chain {'decoy stateful': 530, 'error stateful': 265}
+```
+No N=64 stream holds two chains. All 265 stateful errors at N=64 sit on a stream whose four actions are exactly that chain's setup, middle, cancel and error.
