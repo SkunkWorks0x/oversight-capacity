@@ -1,0 +1,19 @@
+== 1a. keys present in calls.jsonl records
+results_grid: 402 records; keys {'tag': 402, 'model': 402, 'stop': 402, 'in': 402, 'out': 402, 'thinking': 402}; by model {'claude-opus-5-5': 402}
+results_pilot: 5220 records; keys {'tag': 5220, 'model': 5220, 'stop': 5220, 'in': 5220, 'out': 5220, 'thinking': 5220}; by model {'claude-opus-5-5': 80, 'claude-haiku-5-5': 5140}
+== 1b. 'effort' field in scored rows (one row per cell; the runner writes its configured EFFORT[MONITOR])
+results_grid: T0 effort=low: 400
+results_pilot: T0 effort=low: 40, T1 effort=low: 20, T2 effort=low: 20
+== 1c. runner.py run commands (non-mock) writing results_grid or results_pilot
+c7e59a3e line 934 2026-11-03T15:01:47.048Z | runner.py run --ns 1 --seeds 100-119 --conds T0 --reps 2 --subtlety d2h --effort low --root results_pilot
+c7e59a3e line 934 2026-11-03T15:01:47.048Z | runner.py run --ns 1 --seeds 100-119 --conds T1,T2 --reps 1 --subtlety d2h --effort low --root results_pilot
+c7e59a3e line 1005 2026-11-03T18:44:45.074Z | runner.py run --ns 1 --seeds 100-119 --conds T1,T2 --reps 1 --subtlety d2h --effort low --root results_pilot
+713cce0c line 122 2026-11-10T02:13:32.146Z | runner.py run --ns 1,4,16,64 --seeds 0-49 --conds T0 --reps 2 --subtlety d2h --effort low --root results_grid
+713cce0c line 288 2026-11-10T02:22:18.463Z | runner.py run --ns 1 --seeds 100-119 --conds T1,T2 --reps 1 --subtlety d2h --effort low --root results_pilot
+== 2. this session: '=== GRID' and real grid catch figures, before this request
+GRID   line 73 2026-11-10T02:12:48.717Z tool_result: '=== GRID: catch rate by error type [95% CI], false-pos rate ===")' | next lines: ['    cells = defaultdict(list)', '    for r in rows: cells[(r["total"], r["cond"], r["n"])].append']
+GRID   line 794 2026-11-10T04:16:49.938Z tool_result: '=== GRID: catch rate by error type [95% CI], false-pos rate ===' | next lines: ['## results_cal/d1_medium (5 scored)', '  catch local           27/27   = 100.0%  CI[88%,100%]  targ']
+GRID   line 872 2026-11-10T04:23:43.988Z tool_use: "=== GRID' headers: $(grep -c '=== GRID' results_grid/run_stdout.log); " | next lines: []
+GRID   line 879 2026-11-10T04:23:44.410Z tool_result: '=== GRID: catch rate by error type [95% CI], false-pos rate ===' | next lines: ['## F: one status line from run_stdout.log, and line-type counts (no table content printed)', 'done ']
+GRID   line 931 2026-11-10T04:25:07.773Z assistant-text: '=== GRID` header and 4 lines with catch percentages. I counted those l' | next lines: ['**F – sizes:**']
+FIRST grid catch figure: (492, '2026-11-10T03:26:16.854Z', 'tool_result', ' ===\n\nSlopes on log2(N), points per doubling [95% CI]:\n  slope_local                        +0.00  [  +0.00,   +0.00]\n  slope_stateful                     -2.71  [  -4.39,   -0.99]\n  slope_contradiction                +0')
