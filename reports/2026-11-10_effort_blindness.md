@@ -91,3 +91,7 @@ Sources:
 - Lines 90 and 104 (the $36 estimate, $0.089/call) are derived from the pilot, not the grid.
 
 **The 21:36:03 "T0 grid 8.7%" thinking output is pooled only.** The gap2 command reads all 402 records in `results_grid/calls.jsonl`, including the 2 retries, and prints one mean and one share, with no grouping by N. The only by-N grid breakdown before the cutoff is line 235: partial, N=1/4/16, tokens and cost, with thinking not separated.
+
+## Errata (2026-11-10)
+- Lines 1–4 and 53: `effort_blindness.py` is committed (`766eb77`) and in `diagnostics/` (`diagnostics/effort_blindness.py`, output `diagnostics/out/effort_blindness.txt`).
+- Section 3, "Sources": `grid_exposure.py` and four scans, not three, are in `diagnostics/` since `cf390ed` (`diagnostics/grid_exposure.py`; `diagnostics/recovered/sec3_1` to `sec3_4`; re-run outputs in `diagnostics/out/`).
