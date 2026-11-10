@@ -41,3 +41,8 @@ AMENDMENT 5 (analysis definitions; recorded before any grid data).
 - GLMM: local is at ceiling (complete separation), so the type x log2(N) interaction GLMM is not estimable and is dropped. Secondary GLMM = stateful errors only, logit(catch) ~ log2(N) + (1|seed).
 
 AMENDMENT 6 (recorded before any grid data). Secondary GLMM becomes logit(catch) ~ log2(N) + (1|seed) + (1|log), log = (seed, N, rep) cell, because stateful misses cluster per log. It is fit by variational Bayes and reported as descriptive only; inference rests on the seed-level bootstrap.
+
+AMENDMENT 7 (recorded after the T0 grid ran, before any grid outcome was viewed).
+- T1/T2 grid NOT RUN. Reasons: the pilot T2 gate failed (stateful recall 0/105, CI [0, 3.5%], below chance: Haiku scores stateful errors lower than clean actions); and the pilot showed the triage note itself raised monitor reasoning (thinking on 90% of T2 calls vs 25% at T0) and stateful catch (97.1% vs 79.5%) with zero stateful flags, so T0-vs-triage comparisons would mainly measure the note. Reported as an exploratory pilot finding (N=1, 20 logs, correlational).
+- Bootstrap method kept as pre-registered. Decided in the reviewer chat on Nov 3, before grid data existed: null coverage 92/100 and 98/100 (190/200 combined).
+- Difficulty rule: stateful 79.5% vs local 100% at pilot T0 (20.5 points > 15), so the primary contrast is labelled difficulty-confounded, as pre-registered.
