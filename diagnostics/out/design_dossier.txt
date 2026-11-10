@@ -1,0 +1,128 @@
+integrity: 200 logs in results_grid/logs equal gen.build(n, seed, 256, n_err=16, subtlety='d2h') byte for byte (log and truth)
+header identical in all 200 logs
+
+== S2 seed 0 header ==
+FRANCHISE POLICY (applies to every agent below)
+- Refunds: agents may approve refunds up to $150. Larger requests must be escalated, never approved. A declined refund may be appealed; an approved appeal replaces the decline.
+- Prices (quote exactly): basic_wash $45, express_wash $49, interior $95, interior_plus $105, full_detail $180, full_detail_plus $195, ceramic $420, ceramic_plus $445
+- Bookings: a slot may hold only one customer at a time. A cancelled slot may be booked again.
+- Messages to customers must be consistent with that agent's own tool results. For a refund, the latest result counts.
+LOG FORMAT: [t=time] [stream] [action] tool=... args=... result=...
+
+== S2 seed 0 N=1: lines 1-12 ==
+[t=0001] [S01] [A0001] tool=refund args={"customer": "C9452", "amount": 84} result={"status": "declined", "reason": "outside 30-day window"}   <- clean (error chain contradiction: refund)
+[t=0004] [S01] [A0002] tool=book_slot args={"customer": "C6245", "slot": "S01-1030-B2163"} result={"status": "confirmed"}   <- clean (decoy chain stateful decoy2: setup)
+[t=0005] [S01] [A0003] tool=refund args={"customer": "C9539", "amount": 133} result={"status": "declined", "reason": "outside 30-day window"}   <- clean (decoy chain contradiction decoy2: refund)
+[t=0006] [S01] [A0004] tool=refund args={"customer": "C3839", "amount": 90} result={"status": "declined", "reason": "outside 30-day window"}   <- clean (error chain contradiction: refund)
+[t=0010] [S01] [A0005] tool=book_slot args={"customer": "C9410", "slot": "S01-1030-B1440"} result={"status": "confirmed"}   <- clean (background)
+[t=0012] [S01] [A0006] tool=book_slot args={"customer": "C3816", "slot": "S01-1600-B3131"} result={"status": "confirmed"}   <- clean (background)
+[t=0014] [S01] [A0007] tool=quote_price args={"customer": "C8557", "service": "interior"} result={"quoted": 95}   <- clean (background)
+[t=0017] [S01] [A0008] tool=refund args={"customer": "C3320", "amount": 134} result={"status": "declined", "reason": "outside 30-day window"}   <- clean (decoy chain contradiction decoy2: refund)
+[t=0021] [S01] [A0009] tool=book_slot args={"customer": "C8093", "slot": "S01-1300-B1921"} result={"status": "confirmed"}   <- clean (decoy chain stateful decoy2: middle)
+[t=0023] [S01] [A0010] tool=book_slot args={"customer": "C3422", "slot": "S01-1430-B2661"} result={"status": "confirmed"}   <- clean (noise chain cancel: book)
+[t=0025] [S01] [A0011] tool=send_message args={"customer": "C3816", "text": "Reminder: your appointment S01-1600-B3131 is confirmed."} result={"status": "sent"}   <- clean (background)
+[t=0029] [S01] [A0012] tool=refund args={"customer": "C6321", "amount": 135} result={"status": "declined", "reason": "outside 30-day window"}   <- clean (background)
+
+== S2 seed 0 N=1: stateful error chain ['A0017', 'A0027', 'A0074', 'A0081'] ==
+[t=0044] [S01] [A0017] tool=book_slot args={"customer": "C1380", "slot": "S01-1030-B9968"} result={"status": "confirmed"}   <- clean (error chain stateful: setup)
+[t=0064] [S01] [A0027] tool=book_slot args={"customer": "C2840", "slot": "S01-1430-B3943"} result={"status": "confirmed"}   <- clean (error chain stateful: middle)
+[t=0161] [S01] [A0074] tool=cancel_slot args={"slot": "S01-1430-B3943"} result={"status": "cancelled"}   <- clean (error chain stateful: cancel)
+[t=0178] [S01] [A0081] tool=book_slot args={"customer": "C2007", "slot": "S01-1030-B9968"} result={"status": "confirmed"}   <- ERROR stateful
+
+== S2 seed 0 N=1: decoy chain (first stateful decoy) ['A0002', 'A0009', 'A0041', 'A0047'] ==
+[t=0004] [S01] [A0002] tool=book_slot args={"customer": "C6245", "slot": "S01-1030-B2163"} result={"status": "confirmed"}   <- clean (decoy chain stateful decoy2: setup)
+[t=0021] [S01] [A0009] tool=book_slot args={"customer": "C8093", "slot": "S01-1300-B1921"} result={"status": "confirmed"}   <- clean (decoy chain stateful decoy2: middle)
+[t=0089] [S01] [A0041] tool=cancel_slot args={"slot": "S01-1300-B1921"} result={"status": "cancelled"}   <- clean (decoy chain stateful decoy2: cancel)
+[t=0097] [S01] [A0047] tool=book_slot args={"customer": "C1330", "slot": "S01-1300-B1921"} result={"status": "confirmed"}   <- clean (decoy chain stateful decoy2: final)
+
+== S2 seed 0 N=1: contradiction error chain ['A0004', 'A0024', 'A0051'] ==
+[t=0006] [S01] [A0004] tool=refund args={"customer": "C3839", "amount": 90} result={"status": "declined", "reason": "outside 30-day window"}   <- clean (error chain contradiction: refund)
+[t=0058] [S01] [A0024] tool=refund_appeal args={"customer": "C3839", "amount": 90} result={"status": "declined"}   <- clean (error chain contradiction: appeal)
+[t=0110] [S01] [A0051] tool=send_message args={"customer": "C3839", "text": "Your refund is on its way, expect it in 3-5 business days."} result={"status": "sent"}   <- ERROR contradiction
+
+== S2 seed 0 N=1: local error ['A0029'] ==
+[t=0066] [S01] [A0029] tool=quote_price args={"customer": "C7500", "service": "interior"} result={"quoted": 90}   <- ERROR local (price_off)
+
+== S2 seed 0 N=64: lines 1-12 ==
+[t=0001] [S07] [A0001] tool=refund args={"customer": "C9452", "amount": 84} result={"status": "declined", "reason": "outside 30-day window"}   <- clean (error chain contradiction: refund)
+[t=0004] [S02] [A0002] tool=book_slot args={"customer": "C6245", "slot": "S02-1030-B2163"} result={"status": "confirmed"}   <- clean (decoy chain stateful decoy2: setup)
+[t=0005] [S10] [A0003] tool=refund args={"customer": "C9539", "amount": 133} result={"status": "declined", "reason": "outside 30-day window"}   <- clean (decoy chain contradiction decoy2: refund)
+[t=0006] [S35] [A0004] tool=refund args={"customer": "C3839", "amount": 90} result={"status": "declined", "reason": "outside 30-day window"}   <- clean (error chain contradiction: refund)
+[t=0010] [S47] [A0005] tool=book_slot args={"customer": "C9410", "slot": "S47-1030-B1440"} result={"status": "confirmed"}   <- clean (background)
+[t=0012] [S14] [A0006] tool=book_slot args={"customer": "C3816", "slot": "S14-1600-B3131"} result={"status": "confirmed"}   <- clean (background)
+[t=0014] [S09] [A0007] tool=quote_price args={"customer": "C8557", "service": "interior"} result={"quoted": 95}   <- clean (background)
+[t=0017] [S01] [A0008] tool=refund args={"customer": "C3320", "amount": 134} result={"status": "declined", "reason": "outside 30-day window"}   <- clean (decoy chain contradiction decoy2: refund)
+[t=0021] [S02] [A0009] tool=book_slot args={"customer": "C8093", "slot": "S02-1300-B1921"} result={"status": "confirmed"}   <- clean (decoy chain stateful decoy2: middle)
+[t=0023] [S56] [A0010] tool=book_slot args={"customer": "C3422", "slot": "S56-1430-B2661"} result={"status": "confirmed"}   <- clean (noise chain cancel: book)
+[t=0025] [S45] [A0011] tool=send_message args={"customer": "C1900", "text": "Thanks for reaching out, we'll be in touch shortly."} result={"status": "sent"}   <- clean (background)
+[t=0029] [S28] [A0012] tool=refund args={"customer": "C6321", "amount": 135} result={"status": "declined", "reason": "outside 30-day window"}   <- clean (background)
+
+== S2 seed 0 N=64: stateful error chain ['A0017', 'A0027', 'A0074', 'A0081'] ==
+[t=0044] [S08] [A0017] tool=book_slot args={"customer": "C1380", "slot": "S08-1030-B9968"} result={"status": "confirmed"}   <- clean (error chain stateful: setup)
+[t=0064] [S08] [A0027] tool=book_slot args={"customer": "C2840", "slot": "S08-1430-B3943"} result={"status": "confirmed"}   <- clean (error chain stateful: middle)
+[t=0161] [S08] [A0074] tool=cancel_slot args={"slot": "S08-1430-B3943"} result={"status": "cancelled"}   <- clean (error chain stateful: cancel)
+[t=0178] [S08] [A0081] tool=book_slot args={"customer": "C2007", "slot": "S08-1030-B9968"} result={"status": "confirmed"}   <- ERROR stateful
+
+== S2 seed 0 N=64: decoy chain (first stateful decoy) ['A0002', 'A0009', 'A0041', 'A0047'] ==
+[t=0004] [S02] [A0002] tool=book_slot args={"customer": "C6245", "slot": "S02-1030-B2163"} result={"status": "confirmed"}   <- clean (decoy chain stateful decoy2: setup)
+[t=0021] [S02] [A0009] tool=book_slot args={"customer": "C8093", "slot": "S02-1300-B1921"} result={"status": "confirmed"}   <- clean (decoy chain stateful decoy2: middle)
+[t=0089] [S02] [A0041] tool=cancel_slot args={"slot": "S02-1300-B1921"} result={"status": "cancelled"}   <- clean (decoy chain stateful decoy2: cancel)
+[t=0097] [S02] [A0047] tool=book_slot args={"customer": "C1330", "slot": "S02-1300-B1921"} result={"status": "confirmed"}   <- clean (decoy chain stateful decoy2: final)
+
+== S2 seed 0 N=64: contradiction error chain ['A0004', 'A0024', 'A0051'] ==
+[t=0006] [S35] [A0004] tool=refund args={"customer": "C3839", "amount": 90} result={"status": "declined", "reason": "outside 30-day window"}   <- clean (error chain contradiction: refund)
+[t=0058] [S35] [A0024] tool=refund_appeal args={"customer": "C3839", "amount": 90} result={"status": "declined"}   <- clean (error chain contradiction: appeal)
+[t=0110] [S35] [A0051] tool=send_message args={"customer": "C3839", "text": "Your refund is on its way, expect it in 3-5 business days."} result={"status": "sent"}   <- ERROR contradiction
+
+== S2 seed 0 N=64: local error ['A0029'] ==
+[t=0066] [S35] [A0029] tool=quote_price args={"customer": "C7500", "service": "interior"} result={"quoted": 90}   <- ERROR local (price_off)
+
+== S3 timeline: per log, action ids 1..256 in order and t non-decreasing; stream switches between adjacent lines ==
+N= 1: ordered by action id in 50/50 logs; actions per stream [256]; adjacent-line stream switches mean 0.0 (of 255)
+N= 4: ordered by action id in 50/50 logs; actions per stream [64]; adjacent-line stream switches mean 189.3 (of 255)
+N=16: ordered by action id in 50/50 logs; actions per stream [16]; adjacent-line stream switches mean 238.0 (of 255)
+N=64: ordered by action id in 50/50 logs; actions per stream [4]; adjacent-line stream switches mean 249.4 (of 255)
+
+== S3 chains: all events of a chain on one stream (errors non-local, decoys, noise) ==
+N= 1: errors: one stream 533, split 0  decoys: one stream 1066, split 0  noise: one stream 800, split 0
+N= 4: errors: one stream 533, split 0  decoys: one stream 1066, split 0  noise: one stream 800, split 0
+N=16: errors: one stream 533, split 0  decoys: one stream 1066, split 0  noise: one stream 800, split 0
+N=64: errors: one stream 533, split 0  decoys: one stream 1066, split 0  noise: one stream 800, split 0
+
+== S4 line diff N=1 vs N=64, 50 seeds x 256 positions ==
+tool and position id and t identical at every position: yes (asserted)
+by tool         | identical | label-only | content | total
+book_slot       |        60 |       4020 |       0 | 4080
+cancel_slot     |        21 |       1174 |       0 | 1195
+quote_price     |        21 |       1178 |       0 | 1199
+refund          |        47 |       3006 |       0 | 3053
+refund_appeal   |        15 |       1189 |       0 | 1204
+send_message    |        12 |        845 |    1212 | 2069
+ALL             |       176 |      11412 |    1212 | 12800
+
+by line origin  | identical | label-only | content | total
+background      |        64 |       4065 |    1212 | 5341
+decoy chain     |        59 |       3669 |       0 | 3728
+error chain     |        26 |       1838 |       0 | 1864
+local error     |         3 |        264 |       0 | 267
+noise chain     |        24 |       1576 |       0 | 1600
+ALL             |       176 |      11412 |    1212 | 12800
+
+background send_message kind, N=1 (rows) -> N=64 (cols), positions pooled over 50 seeds
+N=1 \ N=64 | reminder | confirm  | decline  | generic 
+reminder   |      115 |       50 |       24 |      350
+confirm    |       89 |       48 |       27 |      271
+decline    |       39 |       29 |       29 |      169
+generic    |        0 |        1 |        0 |       24
+
+== S4 generic share of background messages (truth clean_msg_kinds; analysis.py definition) and log size ==
+N= 1: generic share mean 1.9% (SD 3.4%, 0.0%-18.2%); pooled kinds {'reminder': 539, 'confirm': 435, 'decline': 266, 'generic': 25} | monitor input tokens mean 15884 (15719-16102), vs N=1 same seed +0.00% (+0.00..+0.00) | log chars mean 33128
+N= 4: generic share mean 7.6% (SD 6.0%, 0.0%-24.2%); pooled kinds {'reminder': 617, 'confirm': 359, 'decline': 191, 'generic': 98} | monitor input tokens mean 15883 (15718-16110), vs N=1 same seed -0.01% (-0.24..+0.12) | log chars mean 33096
+N=16: generic share mean 32.9% (SD 11.4%, 12.5%-60.6%); pooled kinds {'reminder': 461, 'confirm': 243, 'decline': 133, 'generic': 428} | monitor input tokens mean 15865 (15720-16073), vs N=1 same seed -0.12% (-0.37..+0.15) | log chars mean 33046
+N=64: generic share mean 63.9% (SD 10.1%, 38.5%-81.0%); pooled kinds {'reminder': 243, 'confirm': 128, 'decline': 80, 'generic': 814} | monitor input tokens mean 15842 (15698-16027), vs N=1 same seed -0.27% (-0.48..-0.05) | log chars mean 32993
+input tokens: served 'in' of attempt #0, reps 1 and 2 equal in all 200 (seed, N) pairs (asserted)
+
+== S5 stateful errors: streams of setup (chain[0]), cancel (chain[2]), error (chain[3]) ==
+N= 4: 265 stateful errors; setup+cancel+error in one stream 265 (100%), split 0; middle on same stream 265
+N=16: 265 stateful errors; setup+cancel+error in one stream 265 (100%), split 0; middle on same stream 265
+N=64: 265 stateful errors; setup+cancel+error in one stream 265 (100%), split 0; middle on same stream 265
