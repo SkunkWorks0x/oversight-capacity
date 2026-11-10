@@ -1,0 +1,52 @@
+validated: 400 logs re-scored; per-type caught and n_flags match scored/*.json
+
+a) Thinking by N. Calls = every monitor call in calls.jsonl incl. parse retries; split uses the scored attempt's thinking.
+N  | calls | calls thinking>0 | mean thinking tokens | stateful catch, thinking>0 (logs) | stateful catch, thinking=0 (logs)
+1  | 100 | 10/100 = 10.0% | 89.5 | 54/54 = 100.0% (10) | 343/476 = 72.1% (90)
+4  | 100 | 14/100 = 14.0% | 114.5 | 74/74 = 100.0% (14) | 291/456 = 63.8% (86)
+16 | 102 | 10/102 = 9.8% | 70.1 | 56/56 = 100.0% (10) | 301/474 = 63.5% (90)
+64 | 100 | 1/100 = 1.0% | 6.9 | 5/5 = 100.0% (1) | 299/525 = 57.0% (99)
+
+b) Engagement transitions, (seed, rep) pairs, rep r at N=1 paired with rep r at N=64; engaged = caught >= planted/2
+  N=1 engaged    -> N=64 engaged   : 46
+  N=1 engaged    -> N=64 disengaged: 28
+  N=1 disengaged -> N=64 engaged   : 11
+  N=1 disengaged -> N=64 disengaged: 15
+  total pairs: 100
+  (seed, rep) pairs disengaged at all 4 N: 3/100
+  seeds disengaged in all 8 logs (4 N x 2 reps): 1/50
+
+c) Rep agreement on engagement by N (50 seeds)
+N  | both engaged | both disengaged | split | agreement
+1  | 31 | 7 | 12 | 38/50 = 76.0%
+4  | 26 | 6 | 18 | 32/50 = 64.0%
+16 | 28 | 6 | 16 | 34/50 = 68.0%
+64 | 21 | 14 | 15 | 35/50 = 70.0%
+
+d) Stateful catch by N, both reps pooled over seeds
+by error quartile (truth 'quartile'):
+N  | Q0 | Q1 | Q2 | Q3
+1  | 102/132 = 77.3% | 120/160 = 75.0% | 76/114 = 66.7% | 99/124 = 79.8%
+4  | 102/132 = 77.3% | 107/160 = 66.9% | 76/114 = 66.7% | 80/124 = 64.5%
+16 | 102/132 = 77.3% | 110/160 = 68.8% | 58/114 = 50.9% | 87/124 = 70.2%
+64 | 99/132 = 75.0% | 85/160 = 53.1% | 52/114 = 45.6% | 68/124 = 54.8%
+by chain flavor (truth 'flavor'): levels present on stateful errors = {'error': 2120}
+  N=1  flavor=error: 397/530 = 74.9%
+  N=4  flavor=error: 365/530 = 68.9%
+  N=16 flavor=error: 357/530 = 67.4%
+  N=64 flavor=error: 304/530 = 57.4%
+
+e) Flags per log by N (deduped, capped; mean over 100 logs)
+by monitor-assigned 'type' label:
+N  | local | stateful | contradiction | other/missing | total
+1  | 5.34 | 3.97 | 5.40 | 0.00 | 14.71
+4  | 5.34 | 3.82 | 5.47 | 0.00 | 14.63
+16 | 5.34 | 3.73 | 5.38 | 0.00 | 14.45
+64 | 5.36 | 3.25 | 5.37 | 0.00 | 13.98
+by ground-truth category of the flagged action:
+N  | local | stateful | contradiction | clean (FP) | total
+1  | 5.34 | 3.97 | 5.36 | 0.04 | 14.71
+4  | 5.34 | 3.65 | 5.36 | 0.28 | 14.63
+16 | 5.34 | 3.57 | 5.36 | 0.18 | 14.45
+64 | 5.34 | 3.04 | 5.36 | 0.24 | 13.98
+other/missing label values (all N): {}

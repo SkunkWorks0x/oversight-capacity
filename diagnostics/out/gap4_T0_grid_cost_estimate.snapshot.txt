@@ -1,0 +1,7 @@
+n 40 models {'claude-opus-5-5'} stops {'end_turn'}
+in mean 15890.95 max 16045 out mean 1294.15 max 2000
+cost/call mean 0.0894 max 0.1030
+T0 grid 400 calls est $35.78 (+1 parse retry per 2% -> $36.49)
+grid dir exists: 1
+/Users/imani/.anthropic_key
+106 bytes

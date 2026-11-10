@@ -1,0 +1,19 @@
+API usage (input, output tokens): {'claude-opus-5-5': (6379229, 487921)}
+stop reasons: {('claude-opus-5-5', 'end_turn'): 402}   <- any max_tokens/refusal: see results/stop_problems.log
+EXIT 0
+done lines: 400  FAIL: 0
+scored files 400 raw files 400
+cells 200 reps/cell {2} conds {'T0'} effort {'low'} total {256}
+N x seeds {1: 50, 4: 50, 16: 50, 64: 50} seed range 0 49
+parse_ok 400 first try 398
+odd/conflict-named files [] 0
+truth gen/subtlety Counter({(3, 'd2h'): 200})
+calls 402 models Counter({'claude-opus-5-5': 402}) stops Counter({'end_turn': 402}) retries(#1) 2
+spent $35.28  $/call 0.0877  in mean 15869  out mean 1214 max 2655
+calls.jsonl
+logs
+raw
+run_stdout.log
+scored
+?? diagnostics/
+?? reports/latest.md

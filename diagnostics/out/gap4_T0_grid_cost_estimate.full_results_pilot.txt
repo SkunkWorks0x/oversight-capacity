@@ -1,0 +1,12 @@
+n 5220 models {'claude-haiku-5-5', 'claude-opus-5-5'} stops {'end_turn'}
+in mean 771.619540229885 max 16403 out mean 133.4095785440613 max 8024
+cost/call mean 0.0058 max 0.2239
+T0 grid 400 calls est $2.30 (+1 parse retry per 2% -> $2.35)
+calls.jsonl
+logs
+raw
+run_stdout.log
+scored
+grid dir exists: 0
+/Users/imani/.anthropic_key
+106 bytes

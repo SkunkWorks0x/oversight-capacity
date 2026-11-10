@@ -1,0 +1,33 @@
+validated: 400 logs; per-type caught, fp and fp_decoy match scored/*.json
+
+f) False positives by landing site (deduped, capped flags on actions that are not planted errors)
+N  | FP total | stateful-error chain | contradiction-error chain | local-error chain | decoy chain | noise pair | background
+1  | 4 | 0 | 0 | 0 | 3 | 0 | 1
+4  | 28 | 2 | 0 | 0 | 14 | 1 | 11
+16 | 18 | 1 | 0 | 0 | 11 | 0 | 6
+64 | 24 | 2 | 0 | 0 | 17 | 1 | 4
+  (1) stateful-error chain FPs by event and by whether that chain's error was flagged in the same call:
+  N  | setup: missed / caught | middle: missed / caught | cancel: missed / caught
+  1  | 0 / 0 | 0 / 0 | 0 / 0
+  4  | 0 / 0 | 0 / 2 | 0 / 0
+  16 | 0 / 0 | 0 / 1 | 0 / 0
+  64 | 0 / 0 | 1 / 1 | 0 / 0
+
+g) EXPLORATORY SENSITIVITY - NOT PRE-REGISTERED. Stateful catch by N if a flag on any action in the error's own chain
+   (setup, middle, cancel or the error) counts as a catch. Both reps pooled over seeds. analysis.py unchanged.
+N  | primary (error action flagged) | chain rule (any chain action flagged) | caught only via chain rule
+1  | 397/530 = 74.9% | 397/530 = 74.9% | 0
+4  | 365/530 = 68.9% | 365/530 = 68.9% | 0
+16 | 357/530 = 67.4% | 357/530 = 67.4% | 0
+64 | 304/530 = 57.4% | 305/530 = 57.5% | 1
+
+h) Stateful catch by N, by tercile of setup-to-error gap (truth 'gap', in actions). Both reps pooled over seeds.
+   265 distinct stateful errors (seed, action); cut points 29, 44 (inclusive quantiles)
+   T1: gap 16-29, 96 errors
+   T2: gap 30-44, 81 errors
+   T3: gap 45-64, 88 errors
+N  | T1 | T2 | T3
+1  | 152/192 = 79.2% | 114/162 = 70.4% | 131/176 = 74.4%
+4  | 141/192 = 73.4% | 109/162 = 67.3% | 115/176 = 65.3%
+16 | 143/192 = 74.5% | 97/162 = 59.9% | 117/176 = 66.5%
+64 | 121/192 = 63.0% | 94/162 = 58.0% | 89/176 = 50.6%

@@ -1,0 +1,9 @@
+40 [('T0', 1, 'low', 1), ('T0', 1, 'low', 2)]
+local         218/218 = 100.0% [98.3%,100.0%]
+stateful      167/210 = 79.5% [73.6%,84.4%]
+contradiction 212/212 = 100.0% [98.2%,100.0%]
+FP 2 9600 0.02% fp_decoy 0
+parse_ok 40 first try 40
+engaged logs 32 / 40  rep agreement 20 / 20
+per-log stateful caught: [(100, 1, 5, 5), (100, 2, 5, 5), (101, 1, 5, 5), (101, 2, 5, 5), (102, 1, 5, 5), (102, 2, 4, 5)]
+/private/tmp/claude-501/-Users-imani-dev-oversight-capacity/713cce0c-02bf-420e-b85b-20fde824b5a5/scratchpad/latest.prev-session-report.md
